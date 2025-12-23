@@ -210,3 +210,16 @@ ALTER TABLE "FormResponse" ADD CONSTRAINT "FormResponse_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "FormResponseField" ADD CONSTRAINT "FormResponseField_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "FormResponse"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Seed SUPERADMIN user
+INSERT INTO "User" ("email", "password", "name", "profession", "role", "createdAt", "updatedAt")
+VALUES (
+  'admin@root.com',
+  '$argon2id$v=19$m=65536,t=3,p=4$ev1r79mLx0i5J63ZUQgRBg$7hLgZgBIhc3vXQVtfCCQ885saX/QWMCQz+Yi4tdV6gs',
+  'Administrador',
+  'Administrador',
+  'SUPERADMIN',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP
+);
+
