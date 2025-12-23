@@ -33,26 +33,57 @@ export class UpdateProjetoService {
         throw new ProjetoDoesNotExist("Projeto does not exist");
       }
 
+      const {
+        slug,
+        name,
+        cliente,
+        descricaoCurta,
+        reportId,
+        groupId,
+        corHex,
+        logoUrl,
+        ativo,
+        themeConfig,
+        heroConfig,
+        users,
+      } = UpdateProjetoUpdateSchema.parse(data);
 
-      const { users, ...projectFields } = data ?? {};
       const updateData: Prisma.ProjetoUpdateInput = {
         updatedAt: new Date(),
       };
 
-      if (projectFields.name !== undefined) {
-        updateData.name = projectFields.name;
+      if (slug !== undefined) {
+        updateData.slug = slug.trim().toLowerCase();
       }
-      if (projectFields.reportId !== undefined) {
-        updateData.reportId = projectFields.reportId;
+      if (name !== undefined) {
+        updateData.name = name.trim();
       }
-      if (projectFields.groupId !== undefined) {
-        updateData.groupId = projectFields.groupId;
+      if (cliente !== undefined) {
+        updateData.cliente = cliente.trim();
       }
-      if (projectFields.corHex !== undefined) {
-        updateData.corHex = projectFields.corHex;
+      if (descricaoCurta !== undefined) {
+        updateData.descricaoCurta = descricaoCurta.trim();
       }
-      if (projectFields.logoUrl !== undefined) {
-        updateData.logoUrl = projectFields.logoUrl;
+      if (reportId !== undefined) {
+        updateData.reportId = reportId;
+      }
+      if (groupId !== undefined) {
+        updateData.groupId = groupId;
+      }
+      if (corHex !== undefined) {
+        updateData.corHex = corHex;
+      }
+      if (logoUrl !== undefined) {
+        updateData.logoUrl = logoUrl;
+      }
+      if (ativo !== undefined) {
+        updateData.ativo = ativo;
+      }
+      if (themeConfig !== undefined) {
+        updateData.themeConfig = themeConfig;
+      }
+      if (heroConfig !== undefined) {
+        updateData.heroConfig = heroConfig;
       }
 
       if (users !== undefined) {

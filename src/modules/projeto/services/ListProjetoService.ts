@@ -11,11 +11,7 @@ export class ListProjetosService {
     try {
       const projects = await this.ProjetoRepository.getProjetos();
 
-      if (!projects || projects.length === 0) {
-        throw new InternalServerError("No projects found.");
-      }
-
-      const safeProjects = projects.map((project) => {
+      const safeProjects = (projects ?? []).map((project) => {
         const safeUsers =
           project.users
             ?.map(({ user, assignedAt }) => {
@@ -35,10 +31,10 @@ export class ListProjetosService {
 
       return safeProjects;
     } catch (error: any) {
-      console.error("Error retrieving cities:", error.message);
+      console.error("Error retrieving projects:", error.message);
 
       throw new InternalServerError(
-        "An error occurred while retrieving cities."
+        "An error occurred while retrieving projects."
       );
     }
   }

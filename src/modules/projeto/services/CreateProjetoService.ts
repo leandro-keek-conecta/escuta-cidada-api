@@ -18,25 +18,48 @@ export class CreateProjetoService {
   public async execute({ data }: IRequest) {
     try {
       const validatedData = projetoSchema.parse(data);
-      const { users, ...projectFields } = validatedData;
-      const normalizedSlug = projectFields.slug.toLowerCase();
+      const {
+        users,
+        slug,
+        name,
+        logoUrl,
+        reportId,
+        groupId,
+        corHex,
+        cliente,
+        descricaoCurta,
+        ativo,
+        themeConfig,
+        heroConfig,
+      } = validatedData;
+      const normalizedSlug = slug.trim().toLowerCase();
+
+      const uniqueUserIds = users
+        ? Array.from(new Set(users.map((user) => user.id)))
+        : [];
 
       const projetoData: Prisma.ProjetoCreateInput = {
         slug: normalizedSlug,
-        name: projectFields.name,
-        logoUrl: projectFields.logoUrl ?? null,
-        reportId: projectFields.reportId ?? undefined,
-        groupId: projectFields.groupId ?? undefined,
-        corHex: projectFields.corHex ?? undefined,
+        name: name.trim(),
+        logoUrl: logoUrl ?? null,
+        reportId: reportId ?? undefined,
+        groupId: groupId ?? undefined,
+        corHex: corHex ?? undefined,
+        cliente: cliente?.trim(),
+        descricaoCurta: descricaoCurta?.trim(),
+        ativo: ativo ?? true,
+        themeConfig: themeConfig ?? undefined,
+        heroConfig: heroConfig ?? undefined,
         users:
-          users && users.length > 0
+          uniqueUserIds.length > 0
             ? {
-                create: users.map((user) => ({
-                  user: { connect: { id: user.id } },
+                create: uniqueUserIds.map((userId) => ({
+                  user: { connect: { id: userId } },
                 })),
               }
             : undefined,
       };
+      
 
       const newProjeto = await this.ProjetoRepository.create(projetoData);
 
