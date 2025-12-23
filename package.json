@@ -1,0 +1,59 @@
+{
+  "name": "keek-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "npx npm-force-resolutions",
+    "build": "tsc",
+    "start": "node --experimental-specifier-resolution=node build/server.js",
+    "dev": "tsx watch ./src/server.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@fastify/env": "^5.0.1",
+    "@fastify/formbody": "^8.0.0",
+    "@prisma/client": "^5.21.0",
+    "argon2": "^0.41.1",
+    "axios": "^1.10.0",
+    "chalk": "^5.3.0",
+    "cors": "^2.8.5",
+    "diagnostics_channel": "^1.1.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.0.0",
+    "fastify-plugin": "^5.0.1",
+    "figlet": "^1.7.0",
+    "http-status-codes": "^2.3.0",
+    "inversify": "^6.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
+    "moment": "^2.30.1",
+    "npm-force-resolutions": "^0.0.10",
+    "pdfkit": "^0.15.0",
+    "prisma": "^5.21.0",
+    "qs": "^6.14.0",
+    "reflect-metadata": "^0.2.2",
+    "stream-buffers": "^3.0.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/figlet": "^1.5.8",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.7.4",
+    "@types/pdfkit": "^0.13.5",
+    "@types/qs": "^6.14.0",
+    "@types/stream-buffers": "^3.0.7",
+    "tsx": "^3.14.0",
+    "typescript": "^5.6.3"
+  },
+  "_moduleAliases": {
+    "@": "build"
+  },
+  "resolutions": {
+    "fastify-plugin": "5.0.1"
+  }
+}

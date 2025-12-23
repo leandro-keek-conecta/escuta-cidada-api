@@ -1,0 +1,219 @@
+// =======================================
+// Generator & Datasource
+// =======================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================================
+// ENUMS
+// =======================================
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  USER
+}
+
+enum ProjetoAccessLevel {
+  FULL_ACCESS
+  AUTOMATIONS_ONLY
+  DASH_ONLY
+}
+
+// =======================================
+// CORE: USER & PROJETO
+// =======================================
+
+model User {
+  id         Int                  @id @default(autoincrement())
+  email      String               @unique
+  password   String
+  name       String
+  profession String?
+  role       Role                 @default(USER)
+
+  projetos   ProjetoUser[]
+  tokens     PasswordResetToken[]
+  responses  FormResponse[]
+  hiddenScreens DashHiddenScreen[]
+
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+}
+
+model Projeto {
+  id          Int              @id @default(autoincrement())
+  slug        String           @unique
+  name        String
+  cliente     String?
+  descricaoCurta String?
+  logoUrl     String?
+  corHex      String?          @default("#ff7a01")
+  ativo       Boolean          @default(true)
+
+  users       ProjetoUser[]
+  chats       AutomationChat[]
+  forms       Form[]
+  responses   FormResponse[]
+  hiddenScreens DashHiddenScreen[]
+
+  // Configurações visuais (opcional)
+  themeConfig Json?
+  heroConfig  Json?
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ProjetoUser {
+  userId     Int
+  projetoId  Int
+  access     ProjetoAccessLevel @default(FULL_ACCESS)
+  assignedAt DateTime           @default(now())
+
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projeto    Projeto @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, projetoId])
+}
+
+// =======================================
+// AUTOMAÇÕES / CHATS
+// =======================================
+
+model AutomationChat {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?
+  url         String
+  isActive    Boolean  @default(true)
+
+  projetoId   Int
+  projeto     Projeto  @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =======================================
+// PASSWORD RESET
+// =======================================
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    Int
+  tokenHash String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// =======================================
+// DASHBOARD CUSTOMIZAÇÃO
+// =======================================
+
+model DashHiddenScreen {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  projetoId  Int
+  screenName String
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projeto    Projeto  @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, projetoId, screenName])
+}
+
+// =======================================
+// FORM ENGINE
+// =======================================
+
+model Form {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+
+  projetoId   Int
+  projeto     Projeto @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+
+  versions    FormVersion[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projetoId, name])
+}
+
+model FormVersion {
+  id        Int      @id @default(autoincrement())
+  formId    Int
+  version   Int
+  schema    Json
+  isActive  Boolean  @default(true)
+
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  fields    FormField[]
+  responses FormResponse[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([formId, version])
+}
+
+model FormField {
+  id             Int      @id @default(autoincrement())
+  formVersionId  Int
+  name           String
+  label          String
+  type           String
+  required       Boolean  @default(false)
+  options        Json?
+  ordem          Int
+
+  formVersion    FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([formVersionId, name])
+}
+
+model FormResponse {
+  id            Int      @id @default(autoincrement())
+  formVersionId Int
+  projetoId     Int
+  userId        Int?
+  ip            String?
+  userAgent     String?
+
+  formVersion   FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  projeto       Projeto     @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  fields        FormResponseField[]
+
+  createdAt     DateTime @default(now())
+}
+
+model FormResponseField {
+  id          Int      @id @default(autoincrement())
+  responseId  Int
+  fieldName   String
+  value       String?
+
+  response    FormResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([fieldName])
+}

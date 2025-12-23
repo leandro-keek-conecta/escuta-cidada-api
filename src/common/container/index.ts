@@ -1,0 +1,54 @@
+import { Container } from "inversify";
+import Types from "@/common/container/types";
+import { IUserRepository } from "@/modules/user/repositories/IUserRepository";
+import { UserRepository } from "@/modules/user/repositories/UserRepository";
+import { UserController } from "@/modules/user/http/controller/userController";
+import { CreateUserService } from "@/modules/user/services/createUserService";
+import { UpdateUserService } from "@/modules/user/services/updateUserService";
+import AuthController from "@/modules/auth/infra/http/controllers/AuthController";
+import { ListUserService } from "@/modules/user/services/listUserService";
+import { ProjetoController } from "@/modules/projeto/http/controller/ProjetoController";
+import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
+import { ProjetoRepository } from "@/modules/projeto/repositories/ProjetoRepository";
+import { ListProjetosService } from "@/modules/projeto/services/ListProjetoService";
+import { UpdateProjetoService } from "@/modules/projeto/services/UpdateProjetoService";
+import { DeleteProjetoService } from "@/modules/projeto/services/DeleteProjetoService";
+import { GetEmbedTokenService } from "@/modules/powerBI/services/powerbiService";
+import { PowerBIController } from "@/modules/powerBI/controllers/powerbiController";
+import { RestartPasswordService } from "@/modules/user/services/forgotPasswordUserService";
+import { PasswordResetTokenRepository } from "@/modules/passwordResetToken/repository/PasswordResetTokenRepository";
+import {ResetPasswordService} from "@/modules/user/services/changePasswordUserService";
+import { AutomationChatRepository } from "@/modules/AutomationChat/repositories/AutomationChatRepository";
+import { CreateAutomationChatService } from "@/modules/AutomationChat/services/createAutomatioChatService";
+import { ListAutomatioChatService } from "@/modules/AutomationChat/services/listAutomatioChatService";
+import { UpdateAutomationChatService } from "@/modules/AutomationChat/services/updateAutomatioChatService";
+import { DeleteAutomationChatService } from "@/modules/AutomationChat/services/deleteAutomatioChatService";
+import { AutomationChatController } from "@/modules/AutomationChat/http/controller/AutomationChatController";
+
+const container = new Container();
+
+container.bind<UserController>(Types.UserController).to(UserController);
+container.bind<IUserRepository>(Types.UserRepository).to(UserRepository);
+container.bind<CreateUserService>(Types.CreateUserService).to(CreateUserService);
+container.bind<UpdateUserService>(Types.UpdateUserService).to(UpdateUserService);
+container.bind<RestartPasswordService>(Types.RestartPasswordService).to(RestartPasswordService);
+container.bind<ResetPasswordService>(Types.ResetPasswordService).to(ResetPasswordService);
+container.bind<PasswordResetTokenRepository>(Types.PasswordResetTokenRepository).to(PasswordResetTokenRepository)
+container.bind(Types.AuthController).toConstantValue(new AuthController());
+container.bind<ListUserService>(Types.ListUserService).to(ListUserService);
+container.bind(Types.ProjetoController).toConstantValue(new ProjetoController());
+container.bind<ProjetoRepository>(Types.ProjetoRepository).to(ProjetoRepository);
+container.bind<CreateProjetoService>(Types.CreateProjetoService).to(CreateProjetoService);
+container.bind<ListProjetosService>(Types.ListProjetoService).to(ListProjetosService);
+container.bind<UpdateProjetoService>(Types.UpdateProjetoService).to(UpdateProjetoService);
+container.bind<DeleteProjetoService>(Types.DeleteProjetoService).to(DeleteProjetoService);
+container.bind<GetEmbedTokenService>(Types.GetEmbedTokenService).to(GetEmbedTokenService);
+container.bind(Types.PowerBIController).toConstantValue(new PowerBIController());
+container.bind<AutomationChatRepository>(Types.AutomationChatRepository).to(AutomationChatRepository);
+container.bind<CreateAutomationChatService>(Types.CreateAutomationChatService).to(CreateAutomationChatService);
+container.bind<DeleteAutomationChatService>(Types.DeleteAutomationChatService).to(DeleteAutomationChatService);
+container.bind<ListAutomatioChatService>(Types.ListAutomatioChatService).to(ListAutomatioChatService);
+container.bind<UpdateAutomationChatService>(Types.UpdateAutomationChatService).to(UpdateAutomationChatService);
+container.bind<AutomationChatController>(Types.AutomationChatController).to(AutomationChatController);
+
+export default container;
