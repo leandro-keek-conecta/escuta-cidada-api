@@ -16,6 +16,7 @@ type ProjectIdResolver = (req: FastifyRequest) => number | Promise<number>;
 const publicKey = Config.jwt.key;
 
 const ROLE_PRIORITY: Record<Role, number> = {
+  [Role.SUPERADMIN]: 0,
   [Role.USER]: 1,
   [Role.ADMIN]: 2,
 };

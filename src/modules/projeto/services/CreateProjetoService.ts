@@ -19,8 +19,10 @@ export class CreateProjetoService {
     try {
       const validatedData = projetoSchema.parse(data);
       const { users, ...projectFields } = validatedData;
+      const normalizedSlug = projectFields.slug.toLowerCase();
 
       const projetoData: Prisma.ProjetoCreateInput = {
+        slug: normalizedSlug,
         name: projectFields.name,
         logoUrl: projectFields.logoUrl ?? null,
         reportId: projectFields.reportId ?? undefined,

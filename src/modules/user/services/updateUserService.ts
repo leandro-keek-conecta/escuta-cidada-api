@@ -37,11 +37,6 @@ export class UpdateUserService {
 
       if (payload.email) updateData.email = payload.email.toLowerCase();
       if (payload.name) updateData.name = payload.name;
-<<<<<<< HEAD
-=======
-      if (payload.profession !== undefined)
-        updateData.profession = payload.profession;
->>>>>>> d4d6e47ff18f2506be93843b2e984aa899877a64
       if (payload.role) updateData.role = payload.role;
 
       // Estratégia: substituir vínculos existentes pelos enviados

@@ -5,10 +5,6 @@ export const userSchema = Z.object({
   email: Z.string().email("Formato de email inválido"),
   password: Z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
   name: Z.string().min(1, "O nome é obrigatório"),
-<<<<<<< HEAD
-=======
-  profession: Z.string().optional(),
->>>>>>> d4d6e47ff18f2506be93843b2e984aa899877a64
   role: Z.nativeEnum(Role),
   projetos: Z.array(
     Z.object({

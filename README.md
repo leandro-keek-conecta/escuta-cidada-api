@@ -1,20 +1,24 @@
 # Escuta Cidada API
 
-API em Fastify + TypeScript usada pelo Keek Conecta para autenticacao, gestao de usuarios/projetos, automacoes de chat e integracao com Power BI. Todas as rotas ficam sob o prefixo `/keek-api`.
+API em Fastify + TypeScript usada pelo Escuta Cidadã para autenticacao, gestao de usuarios/projetos, automacoes de chat e integracao com Power BI. Todas as rotas ficam sob o prefixo `/escuta-cidada-api`.
 
 ## Stack
+
 - Node.js + Fastify 5 com TypeScript (tsx para desenvolvimento)
 - Prisma + PostgreSQL
 - JWT para autenticacao e Inversify para injecao de dependencias
 - Integracoes: Power BI (token de embed) e n8n para fluxo de reset de senha
 
 ## Requisitos
+
 - Node 18+ e npm
 - Banco PostgreSQL acessivel
 - Credenciais JWT e Power BI configuradas
 
 ## Configuracao (.env)
+
 Crie `.env` na raiz com valores reais:
+
 ```env
 NODE_ENV=dev
 PORT=3333
@@ -42,13 +46,15 @@ POWER_BI_PASSWORD=<senha>
 ```
 
 ## Setup
+
 - Instale dependencias: `npm install`
 - Gere o client do Prisma: `npx prisma generate`
 - Aplique migracoes: `npx prisma migrate dev --name init` (dev) ou `npx prisma migrate deploy` (producao)
 - Desenvolvimento: `npm run dev`
 - Producao: `npm run build` e depois `npm run start`
 
-## Rotas principais (prefixo /keek-api)
+## Rotas principais (prefixo /escuta-cidada-api)
+
 - `GET /ping` healthcheck
 - Auth: `POST /auth/login` (email, password) -> access/refresh token e dados do usuario/projetos
 - Usuarios (JWT + role admin): `POST /user/create`, `PATCH /user/update/:id`, `GET /user/list`, `DELETE /user/delete/:id`
@@ -58,6 +64,7 @@ POWER_BI_PASSWORD=<senha>
 - Power BI (JWT): `GET /powerbi/embed-token` gera token de embed usando as variaveis `POWER_BI_*`
 
 ## Estrutura
+
 - `src/server.ts`: inicializa a aplicacao, conecta ao banco e sobe o Fastify
 - `src/app.ts`: configura CORS, formbody, rotas e tratador de erros
 - `src/common`: middlewares, container Inversify e rotas compartilhadas
@@ -65,6 +72,7 @@ POWER_BI_PASSWORD=<senha>
 - `prisma/`: schema Prisma e migracoes
 
 ## Scripts npm
+
 - `npm run dev`: modo watch com tsx
 - `npm run build`: transpila para `build/`
 - `npm run start`: executa a versao compilada

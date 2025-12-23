@@ -26,6 +26,8 @@ CREATE TABLE "Projeto" (
     "cliente" TEXT,
     "descricaoCurta" TEXT,
     "logoUrl" TEXT,
+    "reportId" TEXT,
+    "groupId" TEXT,
     "corHex" TEXT DEFAULT '#ff7a01',
     "ativo" BOOLEAN NOT NULL DEFAULT true,
     "themeConfig" JSONB,

@@ -1,6 +1,7 @@
 import * as Z from "zod";
 
 export const projetoSchema = Z.object({
+  slug: Z.string().min(1, "O slug do projeto e obrigatorio"),
   name: Z.string().min(1, "O nome do projeto e obrigatorio"),
   reportId: Z.string().optional(),
   groupId: Z.string().optional(),

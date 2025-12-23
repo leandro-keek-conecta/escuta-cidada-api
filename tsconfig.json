@@ -3,9 +3,9 @@
     "target": "ES2020",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
-    "baseUrl": "./src",
+    "baseUrl": "./",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"]
     },
     "outDir": "./build",
     "esModuleInterop": true,
@@ -16,6 +16,5 @@
     "experimentalDecorators": true,
     "sourceMap": true,
     "removeComments": true
-  },
-  "include": ["src/**/*"]
+  }
 }

@@ -26,15 +26,11 @@ export class CreateUserService {
       if (existingUser) {
         throw new AppError("Email já cadastrado", StatusCodes.CONFLICT);
       }
-      
+
       const userData = {
         email: data.email.toLowerCase(),
         name: data.name,
         password: await argon2.hash(data.password),
-<<<<<<< HEAD
-=======
-        profession: data.profession,
->>>>>>> d4d6e47ff18f2506be93843b2e984aa899877a64
         role: data.role,
         projetos: data.projetos
           ? {

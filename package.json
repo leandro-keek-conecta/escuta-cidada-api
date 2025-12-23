@@ -1,5 +1,5 @@
 {
-  "name": "keek-api",
+  "name": "escuta-cidada-api",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -50,10 +50,10 @@
     "tsx": "^3.14.0",
     "typescript": "^5.6.3"
   },
-  "_moduleAliases": {
-    "@": "build"
-  },
   "resolutions": {
     "fastify-plugin": "5.0.1"
+  },
+  "_moduleAliases": {
+    "@": "src"
   }
 }

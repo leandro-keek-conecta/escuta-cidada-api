@@ -16,11 +16,12 @@ interface IRequest {
 @injectable()
 export class RestartPasswordService {
   @inject(Types.UserRepository) private userRepository!: IUserRepository;
-  @inject(Types.PasswordResetTokenRepository) private tokenRepository!: IPasswordResetTokenRepository;
-
+  @inject(Types.PasswordResetTokenRepository)
+  private tokenRepository!: IPasswordResetTokenRepository;
 
   public async execute({ email }: IRequest): Promise<void> {
-    if (!email) throw new AppError("Email é obrigatório", StatusCodes.BAD_REQUEST);
+    if (!email)
+      throw new AppError("Email é obrigatório", StatusCodes.BAD_REQUEST);
 
     try {
       // 1️⃣ Verifica se o usuário existe
@@ -47,7 +48,11 @@ export class RestartPasswordService {
       });
 
       // Monta URL de redefinição
-      const resetUrl = `${process.env.API_FRONT}/change-password?token=${encodeURIComponent(plainToken)}&uid=${existUser.id}`;
+      const resetUrl = `${
+        process.env.API_FRONT
+      }/change-password?token=${encodeURIComponent(plainToken)}&uid=${
+        existUser.id
+      }`;
 
       //Envia o e-mail via n8n
       const webhookUrl = process.env.N8N_RESET_PASSWORD_WEBHOOK!;
@@ -55,24 +60,32 @@ export class RestartPasswordService {
         email,
         name: existUser.name,
         resetUrl,
-        appName: "Keek Conecta",
+        appName: "Escuta Cidadã",
         supportEmail: "suporte@keekconecta.com.br",
       };
 
       const response = await axios.post(webhookUrl, payload);
       if (response.status !== 200 && response.status !== 204) {
-        throw new AppError("Falha ao comunicar com o n8n", StatusCodes.BAD_GATEWAY);
+        throw new AppError(
+          "Falha ao comunicar com o n8n",
+          StatusCodes.BAD_GATEWAY
+        );
       }
-
     } catch (error: any) {
       if (error instanceof AppError) {
         throw error;
       }
       if (axios.isAxiosError(error)) {
-        throw new AppError(`Falha de integração com n8n: ${error.message}`, StatusCodes.BAD_GATEWAY);
+        throw new AppError(
+          `Falha de integração com n8n: ${error.message}`,
+          StatusCodes.BAD_GATEWAY
+        );
       }
-      throw new AppError("Erro ao processar envio de e-mail de redefinição", StatusCodes.INTERNAL_SERVER_ERROR, error);
+      throw new AppError(
+        "Erro ao processar envio de e-mail de redefinição",
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        error
+      );
     }
   }
 }
-

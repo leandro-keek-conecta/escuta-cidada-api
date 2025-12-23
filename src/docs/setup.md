@@ -1,4 +1,4 @@
-# 📦 Detalhamento da execução da issue #1 — Keek Conecta API
+# 📦 Detalhamento da execução da issue #1 — Escuta Cidadã API
 
 A primeira demanda foi criar o backend, fazer a arquitetura do projeto e estruturar duas entidades "User" e "Projeto". Além disso, foi criado e rodado a primeira migration do projeto.
 

@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: keek-api
+    container_name: escuta-cidada-api
     ports:
       - "${PORT:-3000}:3000"
     env_file:

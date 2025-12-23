@@ -19,7 +19,7 @@ app.register(cors, {
 app.register(formbody); // Adicione esta linha
 
 // Registra as rotas
-app.register(routes, { container: container, prefix: "/keek-api" });
+app.register(routes, { container: container, prefix: "/escuta-cidada-api" });
 
 // Manipulador de erros
 app.setErrorHandler((error, _req, reply) => {
@@ -50,8 +50,10 @@ app.setErrorHandler((error, _req, reply) => {
   const anyErr = error as any;
   const maybeStatus: number | undefined = anyErr?.status ?? anyErr?.statusCode;
   if (error instanceof AppError || typeof maybeStatus === "number") {
-    const status = error instanceof AppError ? error.status : (maybeStatus as number);
-    const code: string = (error as any).code ?? (status >= 500 ? "INTERNAL_ERROR" : "BAD_REQUEST");
+    const status =
+      error instanceof AppError ? error.status : (maybeStatus as number);
+    const code: string =
+      (error as any).code ?? (status >= 500 ? "INTERNAL_ERROR" : "BAD_REQUEST");
     const message: string = (error as any).message ?? "Error";
     return reply.status(status).send({
       error: { code, message },
