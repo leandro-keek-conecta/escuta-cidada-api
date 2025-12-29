@@ -23,7 +23,13 @@ const Types = {
   DeleteAutomationChatService: Symbol("DeleteAutomationChatService"),
   ListAutomatioChatService: Symbol("ListAutomatioChatService"),
   UpdateAutomationChatService: Symbol("UpdateAutomationChatService"),
-  AutomationChatController: Symbol("AutomationChatController")
+  AutomationChatController: Symbol("AutomationChatController"),
+  FormsRepository: Symbol("FormsRepository"),
+  CreateFormService: Symbol("CreateFormService"),
+  UpdateFormService: Symbol("UpdateFormService"),
+  DeleteFormService: Symbol("DeleteFormService"),
+  ListFormsService: Symbol("ListFormsService"),
+  FormController: Symbol("FormController"),
 };
 
 export default Types;
