@@ -2,10 +2,19 @@ import { Prisma } from "@prisma/client";
 
 export type ProjetoWithRelations = Prisma.ProjetoGetPayload<{
   include: {
-    users: { include: { user: true } };
+    users: { include: { user: { select: { id: true; email: true; name: true; profession: true; role: true; createdAt: true; updatedAt: true; } } } };
     chats: true;
-    forms: true;
-    responses: true;
+    forms: {
+      include: {
+        versions: {
+          include: {
+            fields: true;
+            responses: { include: { fields: true; user: { select: { id: true; email: true; name: true; profession: true; role: true; createdAt: true; updatedAt: true; }; }; }; };
+          };
+        };
+      };
+    };
+    responses: { include: { fields: true; user: { select: { id: true; email: true; name: true; profession: true; role: true; createdAt: true; updatedAt: true; }; }; }; };
     hiddenScreens: true;
   };
 }>;

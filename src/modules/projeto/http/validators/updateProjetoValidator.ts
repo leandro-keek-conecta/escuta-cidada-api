@@ -1,4 +1,9 @@
 import * as Z from "zod";
+import {
+  automationChatSchema,
+  formSchema,
+  hiddenScreenSchema,
+} from "./createProjetoValidator";
 
 const hexColorRegex = /^#[0-9a-fA-F]{6}$/;
 
@@ -24,14 +29,7 @@ export const UpdateProjetoUpdateSchema = Z.object({
   )
     .nonempty("Informe pelo menos um usuario")
     .optional(),
-  forms: Z.array(
-    Z.object({
-      id: Z.number().int("Id do forms deve ser um numero inteiro"),
-    })
-  ).optional(),
-  hiddenScreens: Z.array(
-    Z.object({
-      id: Z.number().int("Id da tela deve ser um numero inteiro"),
-    })
-  ).optional(),
+  chats: Z.array(automationChatSchema).optional(),
+  forms: Z.array(formSchema).optional(),
+  hiddenScreens: Z.array(hiddenScreenSchema).optional(),
 });

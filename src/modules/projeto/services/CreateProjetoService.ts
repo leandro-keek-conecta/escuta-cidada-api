@@ -31,6 +31,9 @@ export class CreateProjetoService {
         ativo,
         themeConfig,
         heroConfig,
+        chats,
+        forms,
+        hiddenScreens,
       } = validatedData;
       const normalizedSlug = slug.trim().toLowerCase();
 
@@ -55,6 +58,59 @@ export class CreateProjetoService {
             ? {
                 create: uniqueUserIds.map((userId) => ({
                   user: { connect: { id: userId } },
+                })),
+              }
+            : undefined,
+        chats:
+          chats && chats.length > 0
+            ? {
+                create: chats.map((chat) => ({
+                  slug: chat.slug.trim().toLowerCase(),
+                  title: chat.title.trim(),
+                  description: chat.description?.trim(),
+                  url: chat.url.trim(),
+                  isActive: chat.isActive ?? true,
+                })),
+              }
+            : undefined,
+        forms:
+          forms && forms.length > 0
+            ? {
+                create: forms.map((form) => ({
+                  name: form.name.trim(),
+                  description: form.description?.trim(),
+                  versions:
+                    form.versions && form.versions.length > 0
+                      ? {
+                          create: form.versions.map((version) => ({
+                            version: version.version,
+                            schema: version.schema ?? {},
+                            isActive: version.isActive ?? true,
+                            fields:
+                              version.fields && version.fields.length > 0
+                                ? {
+                                    create: version.fields.map((field) => ({
+                                      name: field.name.trim(),
+                                      label: field.label.trim(),
+                                      type: field.type.trim(),
+                                      required: field.required ?? false,
+                                      options: field.options ?? undefined,
+                                      ordem: field.ordem,
+                                    })),
+                                  }
+                                : undefined,
+                          })),
+                        }
+                      : undefined,
+                })),
+              }
+            : undefined,
+        hiddenScreens:
+          hiddenScreens && hiddenScreens.length > 0
+            ? {
+                create: hiddenScreens.map((hidden) => ({
+                  screenName: hidden.screenName.trim(),
+                  user: { connect: { id: hidden.userId } },
                 })),
               }
             : undefined,

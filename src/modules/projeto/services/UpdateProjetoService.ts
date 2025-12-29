@@ -46,6 +46,9 @@ export class UpdateProjetoService {
         themeConfig,
         heroConfig,
         users,
+        chats,
+        forms,
+        hiddenScreens,
       } = UpdateProjetoUpdateSchema.parse(data);
 
       const updateData: Prisma.ProjetoUpdateInput = {
@@ -86,23 +89,94 @@ export class UpdateProjetoService {
         updateData.heroConfig = heroConfig;
       }
 
+      const shouldValidateUsers = users !== undefined || hiddenScreens !== undefined;
+      const existingUserIds =
+        shouldValidateUsers
+          ? new Set((await this.userRepository.getUsers()).map((user) => user.id))
+          : null;
+
       if (users !== undefined) {
         const uniqueUserIds = Array.from(new Set(users.map((user) => user.id)));
-       
-        const existingUsers = await this.userRepository.getUsers();
-        const existingIdsSet = new Set(existingUsers.map((user) => user.id));
+        const invalidIds =
+          existingUserIds === null
+            ? []
+            : uniqueUserIds.filter((userId) => !existingUserIds.has(userId));
 
-        const invalidIds = uniqueUserIds.filter((userId) => !existingIdsSet.has(userId));
-        
         if (invalidIds.length > 0) {
           throw new ValidationError("One or more user IDs are invalid", invalidIds);
         }
 
-        
         updateData.users = {
           deleteMany: {},
           create: uniqueUserIds.map((userId) => ({
             user: { connect: { id: userId } },
+          })),
+        };
+      }
+
+      if (chats !== undefined) {
+        updateData.chats = {
+          deleteMany: {},
+          create: chats.map((chat) => ({
+            slug: chat.slug.trim().toLowerCase(),
+            title: chat.title.trim(),
+            description: chat.description?.trim(),
+            url: chat.url.trim(),
+            isActive: chat.isActive ?? true,
+          })),
+        };
+      }
+
+      if (forms !== undefined) {
+        updateData.forms = {
+          deleteMany: {},
+          create: forms.map((form) => ({
+            name: form.name.trim(),
+            description: form.description?.trim(),
+            versions:
+              form.versions && form.versions.length > 0
+                ? {
+                    create: form.versions.map((version) => ({
+                      version: version.version,
+                      schema: version.schema ?? {},
+                      isActive: version.isActive ?? true,
+                      fields:
+                        version.fields && version.fields.length > 0
+                          ? {
+                              create: version.fields.map((field) => ({
+                                name: field.name.trim(),
+                                label: field.label.trim(),
+                                type: field.type.trim(),
+                                required: field.required ?? false,
+                                options: field.options ?? undefined,
+                                ordem: field.ordem,
+                              })),
+                            }
+                          : undefined,
+                    })),
+                  }
+                : undefined,
+          })),
+        };
+      }
+
+      if (hiddenScreens !== undefined) {
+        const invalidIds =
+          existingUserIds === null
+            ? []
+            : hiddenScreens
+                .map((hidden) => hidden.userId)
+                .filter((userId) => !existingUserIds.has(userId));
+
+        if (invalidIds.length > 0) {
+          throw new ValidationError("One or more user IDs are invalid", invalidIds);
+        }
+
+        updateData.hiddenScreens = {
+          deleteMany: {},
+          create: hiddenScreens.map((hidden) => ({
+            screenName: hidden.screenName.trim(),
+            user: { connect: { id: hidden.userId } },
           })),
         };
       }

@@ -14,12 +14,11 @@ export class ListProjetosService {
       const safeProjects = (projects ?? []).map((project) => {
         const safeUsers =
           project.users
-            ?.map(({ user, assignedAt }) => {
+            ?.map(({ user, assignedAt, access }) => {
               if (!user) {
                 return null;
               }
-              const { password, ...rest } = user;
-              return { ...rest, assignedAt };
+              return { ...user, assignedAt, access };
             })
             .filter((item): item is Exclude<typeof item, null> => item !== null) || [];
 

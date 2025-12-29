@@ -3,11 +3,40 @@ import { prisma } from "@/lib/prisma";
 import { injectable } from "inversify";
 import { IProjetoRepository, ProjetoWithRelations } from "./IProjetoRepository";
 
+const userSafeSelect = {
+  id: true,
+  email: true,
+  name: true,
+  profession: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 const defaultInclude = {
-  users: { include: { user: true } },
+  users: { include: { user: { select: userSafeSelect } } },
   chats: true,
-  forms: true,
-  responses: true,
+  forms: {
+    include: {
+      versions: {
+        include: {
+          fields: true,
+          responses: {
+            include: {
+              fields: true,
+              user: { select: userSafeSelect },
+            },
+          },
+        },
+      },
+    },
+  },
+  responses: {
+    include: {
+      fields: true,
+      user: { select: userSafeSelect },
+    },
+  },
   hiddenScreens: true,
 } as const;
 
