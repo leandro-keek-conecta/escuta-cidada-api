@@ -7,7 +7,7 @@ import { CreateUserService } from "@/modules/user/services/createUserService";
 import { UpdateUserService } from "@/modules/user/services/updateUserService";
 import AuthController from "@/modules/auth/infra/http/controllers/AuthController";
 import { ListUserService } from "@/modules/user/services/listUserService";
-import { ProjetoController } from "@/modules/projeto/http/controller/ProjetoController";
+import { ProjetoController } from "@/modules/projeto/http/controller/projetoController";
 import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
 import { ProjetoRepository } from "@/modules/projeto/repositories/ProjetoRepository";
 import { ListProjetosService } from "@/modules/projeto/services/ListProjetoService";
@@ -24,7 +24,13 @@ import { ListAutomatioChatService } from "@/modules/AutomationChat/services/list
 import { UpdateAutomationChatService } from "@/modules/AutomationChat/services/updateAutomatioChatService";
 import { DeleteAutomationChatService } from "@/modules/AutomationChat/services/deleteAutomatioChatService";
 import { AutomationChatController } from "@/modules/AutomationChat/http/controller/AutomationChatController";
-
+import { IFormsRepository } from "@/modules/form/repositories/IFormRepository";
+import { FormsRepository } from "@/modules/form/repositories/FormRepository";
+import { CreateFormService } from "@/modules/form/services/CreateFormService";
+import { UpdateFormService } from "@/modules/form/services/UpdateFormService";
+import { ListFormsService } from "@/modules/form/services/ListFormsService";
+import { DeleteFormService } from "@/modules/form/services/DeleteFormService";
+import { FormController } from "@/modules/form/http/controller/formController";
 const container = new Container();
 
 container.bind<UserController>(Types.UserController).to(UserController);
@@ -50,5 +56,10 @@ container.bind<DeleteAutomationChatService>(Types.DeleteAutomationChatService).t
 container.bind<ListAutomatioChatService>(Types.ListAutomatioChatService).to(ListAutomatioChatService);
 container.bind<UpdateAutomationChatService>(Types.UpdateAutomationChatService).to(UpdateAutomationChatService);
 container.bind<AutomationChatController>(Types.AutomationChatController).to(AutomationChatController);
-
+container.bind<IFormsRepository>(Types.FormsRepository).to(FormsRepository);
+container.bind<CreateFormService>(Types.CreateFormService).to(CreateFormService);
+container.bind<UpdateFormService>(Types.UpdateFormService).to(UpdateFormService);
+container.bind<ListFormsService>(Types.ListFormsService).to(ListFormsService);
+container.bind<DeleteFormService>(Types.DeleteFormService).to(DeleteFormService);
+container.bind<FormController>(Types.FormController).to(FormController);
 export default container;
