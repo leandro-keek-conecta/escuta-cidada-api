@@ -18,25 +18,104 @@ export class CreateProjetoService {
   public async execute({ data }: IRequest) {
     try {
       const validatedData = projetoSchema.parse(data);
-      const { users, ...projectFields } = validatedData;
-      const normalizedSlug = projectFields.slug.toLowerCase();
+      const {
+        users,
+        slug,
+        name,
+        logoUrl,
+        reportId,
+        groupId,
+        corHex,
+        cliente,
+        descricaoCurta,
+        ativo,
+        themeConfig,
+        heroConfig,
+        chats,
+        forms,
+        hiddenScreens,
+      } = validatedData;
+      const normalizedSlug = slug.trim().toLowerCase();
+
+      const uniqueUserIds = users
+        ? Array.from(new Set(users.map((user) => user.id)))
+        : [];
 
       const projetoData: Prisma.ProjetoCreateInput = {
         slug: normalizedSlug,
-        name: projectFields.name,
-        logoUrl: projectFields.logoUrl ?? null,
-        reportId: projectFields.reportId ?? undefined,
-        groupId: projectFields.groupId ?? undefined,
-        corHex: projectFields.corHex ?? undefined,
+        name: name.trim(),
+        logoUrl: logoUrl ?? null,
+        reportId: reportId ?? undefined,
+        groupId: groupId ?? undefined,
+        corHex: corHex ?? undefined,
+        cliente: cliente?.trim(),
+        descricaoCurta: descricaoCurta?.trim(),
+        ativo: ativo ?? true,
+        themeConfig: themeConfig ?? undefined,
+        heroConfig: heroConfig ?? undefined,
         users:
-          users && users.length > 0
+          uniqueUserIds.length > 0
             ? {
-                create: users.map((user) => ({
-                  user: { connect: { id: user.id } },
+                create: uniqueUserIds.map((userId) => ({
+                  user: { connect: { id: userId } },
+                })),
+              }
+            : undefined,
+        chats:
+          chats && chats.length > 0
+            ? {
+                create: chats.map((chat) => ({
+                  slug: chat.slug.trim().toLowerCase(),
+                  title: chat.title.trim(),
+                  description: chat.description?.trim(),
+                  url: chat.url.trim(),
+                  isActive: chat.isActive ?? true,
+                })),
+              }
+            : undefined,
+        forms:
+          forms && forms.length > 0
+            ? {
+                create: forms.map((form) => ({
+                  name: form.name.trim(),
+                  description: form.description?.trim(),
+                  versions:
+                    form.versions && form.versions.length > 0
+                      ? {
+                          create: form.versions.map((version) => ({
+                            version: version.version,
+                            schema: version.schema ?? {},
+                            isActive: version.isActive ?? true,
+                            fields:
+                              version.fields && version.fields.length > 0
+                                ? {
+                                    create: version.fields.map((field) => ({
+                                      name: field.name.trim(),
+                                      label: field.label.trim(),
+                                      type: field.type.trim(),
+                                      required: field.required ?? false,
+                                      options: field.options ?? undefined,
+                                      ordem: field.ordem,
+                                    })),
+                                  }
+                                : undefined,
+                          })),
+                        }
+                      : undefined,
+                })),
+              }
+            : undefined,
+        hiddenScreens:
+          hiddenScreens && hiddenScreens.length > 0
+            ? {
+                create: hiddenScreens.map((hidden) => ({
+                  screenName: hidden.screenName.trim(),
+                  user: { connect: { id: hidden.userId } },
                 })),
               }
             : undefined,
       };
+      
 
       const newProjeto = await this.ProjetoRepository.create(projetoData);
 

@@ -1,8 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import { injectable, inject } from "inversify"; // Adiciona o inject
-import Types from "@/common/container/types"; // Certifique-se de ajustar o caminho conforme necessário
+import { injectable, inject } from "inversify"; 
 import { projetoSchema } from "@/modules/projeto/http/validators/createProjetoValidator";
-import { ZodError } from "zod";
 import AppContainer from "@/common/container";
 import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
 import { ListProjetosService } from "@/modules/projeto/services/ListProjetoService";
