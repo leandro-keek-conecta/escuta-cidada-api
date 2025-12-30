@@ -2,13 +2,12 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { injectable, inject } from "inversify"; 
 import { projetoSchema } from "@/modules/projeto/http/validators/createProjetoValidator";
 import AppContainer from "@/common/container";
-import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
 import { ListProjetosService } from "@/modules/projeto/services/ListProjetoService";
 import { UpdateProjetoService } from "@/modules/projeto/services/UpdateProjetoService";
 import { UpdateProjetoUpdateSchema } from "@/modules/projeto/http/validators/updateProjetoValidator";
 import { DeleteProjetoService } from "@/modules/projeto/services/DeleteProjetoService";
 import { ProjetoDoesNotExist } from "@/modules/projeto/errors/ProjetoDoesNotExist";
-
+import { CreateProjetoService } from "@/modules/projeto/services/createProjetoService";
 @injectable()
 export class ProjetoController {
   
