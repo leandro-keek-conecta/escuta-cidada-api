@@ -14,8 +14,8 @@ export class FormVersionRepository implements IFormVersionRepository {
   async updateFormVersion(
     id: number,
     data: Prisma.FormVersionUpdateInput
-  ): Promise<void> {
-    await prisma.formVersion.update({
+  ): Promise<FormVersion> {
+    return await prisma.formVersion.update({
       where: { id },
       data,
     });

@@ -5,7 +5,7 @@ export interface IFormVersionRepository {
   updateFormVersion(
     id: number,
     data: Prisma.FormVersionUpdateInput
-  ): Promise<void>;
+  ): Promise<FormVersion>;
   findById(id: number): Promise<FormVersion | null>;
   getFormVersions(filter?: { formId?: number }): Promise<FormVersion[]>;
   delete(id: number): Promise<void>;

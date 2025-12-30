@@ -1,10 +1,10 @@
 import Types from "@/common/container/types";
 import { inject, injectable } from "inversify";
-import { IFormVersionRepository } from "../repositories/IFormVersionRepository";
-import { error } from "console";
 import AppError from "@/common/errors/AppError";
 import { StatusCodes } from "http-status-codes";
-import { FormDoesNotExist } from "@/modules/form/errors/FormDoesNotExist";
+
+import { FormVersionDoesNotExist } from "../errors/FormVersionDoesNotExist";
+import { IFormVersionRepository } from "../repositories/IFormVersionRepository";
 
 interface IRequest {
   id: number;
@@ -18,19 +18,19 @@ export class DeleteFormVersionService {
   public async execute({ id }: IRequest) {
     try {
       if (!id || Number.isNaN(id)) {
-        throw new AppError("Id do form invalido", StatusCodes.BAD_REQUEST);
+        throw new AppError("Id da versao invalido", StatusCodes.BAD_REQUEST);
       }
       const existFormVersion = await this.formVersionRepository.findById(id);
       if (!existFormVersion) {
-        throw new FormDoesNotExist();
+        throw new FormVersionDoesNotExist();
       }
       await this.formVersionRepository.delete(id);
     } catch (error: any) {
-      if (error instanceof AppError || error instanceof FormDoesNotExist) {
+      if (error instanceof AppError || error instanceof FormVersionDoesNotExist) {
         throw error;
       }
       throw new AppError(
-        "Erro ao deletar formulario",
+        "Erro ao deletar versao de formulario",
         StatusCodes.INTERNAL_SERVER_ERROR
       );
     }
