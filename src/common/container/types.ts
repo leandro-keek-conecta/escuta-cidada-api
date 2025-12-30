@@ -30,6 +30,12 @@ const Types = {
   DeleteFormService: Symbol("DeleteFormService"),
   ListFormsService: Symbol("ListFormsService"),
   FormController: Symbol("FormController"),
+  FormVersionRepository: Symbol("FormVersionRepository"),
+  CreateFormVersionService: Symbol("CreateFormVersionService"),
+  UpdateFormVersionService: Symbol("UpdateFormVersionService"),
+  DeleteFormVersionService: Symbol("DeleteFormVersionService"),
+  ListFormVersionsService: Symbol("ListFormVersionsService"),
+  FormVersionController: Symbol("FormVersionController"),
 };
 
 export default Types;

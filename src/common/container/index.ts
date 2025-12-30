@@ -31,6 +31,13 @@ import { UpdateFormService } from "@/modules/form/services/UpdateFormService";
 import { ListFormsService } from "@/modules/form/services/ListFormsService";
 import { DeleteFormService } from "@/modules/form/services/DeleteFormService";
 import { FormController } from "@/modules/form/http/controller/formController";
+import { IFormVersionRepository } from "@/modules/FormVersion/repositories/IFormVersionRepository";
+import { FormVersionRepository } from "@/modules/FormVersion/repositories/FormVersionRepository";
+import { CreateFormVersionService } from "@/modules/FormVersion/services/CreateFormVersionService";
+import { UpdateFormVersionService } from "@/modules/FormVersion/services/UpdateFormVersionService";
+import { ListFormVersionsService } from "@/modules/FormVersion/services/ListFormVersionsService";
+import { DeleteFormVersionService } from "@/modules/FormVersion/services/DeleteFormVersionService";
+import { FormVersionController } from "@/modules/FormVersion/http/controller/formVersionController";
 const container = new Container();
 
 container.bind<UserController>(Types.UserController).to(UserController);
@@ -62,4 +69,10 @@ container.bind<UpdateFormService>(Types.UpdateFormService).to(UpdateFormService)
 container.bind<ListFormsService>(Types.ListFormsService).to(ListFormsService);
 container.bind<DeleteFormService>(Types.DeleteFormService).to(DeleteFormService);
 container.bind<FormController>(Types.FormController).to(FormController);
+container.bind<IFormVersionRepository>(Types.FormVersionRepository).to(FormVersionRepository);
+container.bind<CreateFormVersionService>(Types.CreateFormVersionService).to(CreateFormVersionService);
+container.bind<UpdateFormVersionService>(Types.UpdateFormVersionService).to(UpdateFormVersionService);
+container.bind<ListFormVersionsService>(Types.ListFormVersionsService).to(ListFormVersionsService);
+container.bind<DeleteFormVersionService>(Types.DeleteFormVersionService).to(DeleteFormVersionService);
+container.bind<FormVersionController>(Types.FormVersionController).to(FormVersionController);
 export default container;

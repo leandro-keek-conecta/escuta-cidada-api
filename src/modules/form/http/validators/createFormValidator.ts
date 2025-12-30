@@ -1,9 +1,5 @@
 import * as Z from "zod";
 
-export const createFormValidator = {
-
-}
-
 export const formFieldSchema = Z.object({
   name: Z.string().trim().min(1, "O nome do campo e obrigatorio"),
   label: Z.string().trim().min(1, "O label do campo e obrigatorio"),
@@ -24,15 +20,22 @@ export const formVersionSchema = Z.object({
   fields: Z.array(formFieldSchema).optional(),
 });
 
+export const initialFormVersionSchema = Z.object({
+  schema: Z.record(Z.any()).default({}),
+  isActive: Z.boolean().default(true),
+  fields: Z.array(formFieldSchema).optional(),
+});
+
 export const createFormSchema = Z.object({
   name: Z.string().trim().min(1, "O nome do form e obrigatorio"),
   description: Z.string().trim().optional(),
   projetoId: Z.number()
     .int("O projeto deve ser um numero inteiro")
     .positive("O projeto deve ser valido"),
-  versions: Z.array(formVersionSchema).optional(),
+  initialVersion: initialFormVersionSchema.optional(),
 });
 
 export type FormFieldInput = Z.infer<typeof formFieldSchema>;
 export type FormVersionInput = Z.infer<typeof formVersionSchema>;
+export type InitialFormVersionInput = Z.infer<typeof initialFormVersionSchema>;
 export type CreateFormInput = Z.infer<typeof createFormSchema>;
