@@ -22,35 +22,34 @@ export class CreateFormService {
   public async execute({ data }: IRequest) {
     try {
       const parsed = createFormSchema.parse(data);
-      const { name, description, projetoId, versions } = parsed;
+      const { name, description, projetoId, initialVersion } = parsed;
 
       const formData: Prisma.FormCreateInput = {
         name: name.trim(),
         description: description?.trim(),
         projeto: { connect: { id: projetoId } },
-        versions:
-          versions && versions.length > 0
-            ? {
-                create: versions.map((version) => ({
-                  version: version.version,
-                  schema: version.schema ?? {},
-                  isActive: version.isActive ?? true,
-                  fields:
-                    version.fields && version.fields.length > 0
-                      ? {
-                          create: version.fields.map((field) => ({
-                            name: field.name.trim(),
-                            label: field.label.trim(),
-                            type: field.type.trim(),
-                            required: field.required ?? false,
-                            options: field.options ?? undefined,
-                            ordem: field.ordem,
-                          })),
-                        }
-                      : undefined,
-                })),
-              }
-            : undefined,
+        versions: {
+          create: [
+            {
+              version: 1,
+              schema: initialVersion?.schema ?? {},
+              isActive: initialVersion?.isActive ?? true,
+              fields:
+                initialVersion?.fields && initialVersion.fields.length > 0
+                  ? {
+                      create: initialVersion.fields.map((field) => ({
+                        name: field.name.trim(),
+                        label: field.label.trim(),
+                        type: field.type.trim(),
+                        required: field.required ?? false,
+                        options: field.options ?? undefined,
+                        ordem: field.ordem,
+                      })),
+                    }
+                  : undefined,
+            },
+          ],
+        },
       };
 
       const created = await this.formRepository.create(formData);

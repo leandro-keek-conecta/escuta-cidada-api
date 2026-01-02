@@ -16,9 +16,9 @@ type ProjectIdResolver = (req: FastifyRequest) => number | Promise<number>;
 const publicKey = Config.jwt.key;
 
 const ROLE_PRIORITY: Record<Role, number> = {
-  [Role.SUPERADMIN]: 0,
   [Role.USER]: 1,
   [Role.ADMIN]: 2,
+  [Role.SUPERADMIN]: 3,
 };
 
 const PROJECT_ACCESS_PRIORITY: Record<ProjetoAccessLevel, number> = {
@@ -32,6 +32,7 @@ const normalizeRole = (role?: string): Role | undefined => {
   const upper = role.toUpperCase();
   if (upper === Role.ADMIN) return Role.ADMIN;
   if (upper === Role.USER) return Role.USER;
+  if (upper === Role.SUPERADMIN) return Role.SUPERADMIN;
   return undefined;
 };
 
@@ -60,7 +61,7 @@ const ensureProjectAccess = ({
     }
 
     const role = normalizeRole(req.auth?.role);
-    if (role === Role.ADMIN) {
+    if (role === Role.ADMIN || role === Role.SUPERADMIN) {
       return; // Admin sempre possui acesso
     }
 
