@@ -36,6 +36,9 @@ const Types = {
   DeleteFormVersionService: Symbol("DeleteFormVersionService"),
   ListFormVersionsService: Symbol("ListFormVersionsService"),
   FormVersionController: Symbol("FormVersionController"),
+  PublicFormReadRepository: Symbol("PublicFormReadRepository"),
+  PublicFormReadService: Symbol("PublicFormReadService"),
+  PublicFormController: Symbol("PublicFormController"),
 };
 
 export default Types;
