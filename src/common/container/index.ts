@@ -94,5 +94,4 @@ container.bind<UpdateFormVersionService>(Types.UpdateFormVersionService).to(Upda
 container.bind<ListFormVersionsService>(Types.ListFormVersionsService).to(ListFormVersionsService);
 container.bind<DeleteFormVersionService>(Types.DeleteFormVersionService).to(DeleteFormVersionService);
 container.bind<FormVersionController>(Types.FormVersionController).to(FormVersionController);
-container.bind<FormFieldRepository>(Types.FormFieldRepository).to(FormFieldRepository);
 export default container;
