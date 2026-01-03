@@ -39,6 +39,12 @@ const Types = {
   PublicFormReadRepository: Symbol("PublicFormReadRepository"),
   PublicFormReadService: Symbol("PublicFormReadService"),
   PublicFormController: Symbol("PublicFormController"),
+  FormFieldRepository: Symbol("FormFieldRepository"),
+  CreateFormFieldService: Symbol("CreateFormFieldService"),
+  UpdateFormFieldService: Symbol("UpdateFormFieldService"),
+  DeleteFormFieldService: Symbol("DeleteFormFieldService"),
+  ListFormFieldsService: Symbol("ListFormFieldsService"),
+  FormFieldController: Symbol("FormFieldController"),
 };
 
 export default Types;
