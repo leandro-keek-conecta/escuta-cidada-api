@@ -21,6 +21,12 @@ export async function routerFormResponse(app: FastifyInstance) {
     controller.list.bind(controller)
   );
 
+  app.patch(
+    "/update/:id",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    controller.update.bind(controller)
+  );
+
   app.delete(
     "/delete/:id",
     { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },

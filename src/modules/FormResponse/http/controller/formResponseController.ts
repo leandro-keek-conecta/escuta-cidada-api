@@ -7,10 +7,13 @@ import AppError from "@/common/errors/AppError";
 import { CreateFormResponseService } from "../../services/CreateFormResponseService";
 import { ListFormResponsesService } from "../../services/ListFormResponsesService";
 import { DeleteFormResponseService } from "../../services/DeleteFormResponseService";
+import { UpdateFormResponseService } from "../../services/UpdateFormResponseService";
+import { FormResponseDoesNotExist } from "../../errors/FormResponseDoesNotExist";
 
 @injectable()
 export class FormResponseController {
     @inject(Types.CreateFormResponseService) private readonly createFormResponseService!: CreateFormResponseService;
+    @inject(Types.UpdateFormResponseService) private readonly updateFormResponseService!: UpdateFormResponseService;
     @inject(Types.ListFormResponsesService) private readonly listFormResponsesService!: ListFormResponsesService;
     @inject(Types.DeleteFormResponseService) private readonly deleteFormResponseService!: DeleteFormResponseService;
 
@@ -50,6 +53,31 @@ export class FormResponseController {
     }
   }
 
+  async update(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    const { id } = request.params as { id?: string };
+    const idNum = id ? Number(id) : NaN;
+
+    if (Number.isNaN(idNum)) {
+      return reply
+        .status(StatusCodes.BAD_REQUEST)
+        .send({ message: "id ゼ obrigatИrio e deve ser numゼrico" });
+    }
+
+    try {
+      const updated = await this.updateFormResponseService.execute({
+        id: idNum,
+        data: request.body as any,
+      });
+
+      return reply.status(StatusCodes.OK).send({ data: updated });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
   async delete(
     request: FastifyRequest,
     reply: FastifyReply
@@ -73,6 +101,12 @@ export class FormResponseController {
   }
 
   private handleError(reply: FastifyReply, error: unknown): FastifyReply {
+    if (error instanceof FormResponseDoesNotExist) {
+      return reply
+        .status(StatusCodes.NOT_FOUND)
+        .send({ message: error.message });
+    }
+
     if (error instanceof AppError) {
       return reply
         .status(error.statusCode)

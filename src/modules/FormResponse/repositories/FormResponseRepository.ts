@@ -25,6 +25,19 @@ export class FormResponseRepository implements IFormResponseRepository {
     });
   }
 
+  async update(
+    id: number,
+    data: Prisma.FormResponseUpdateInput
+  ): Promise<FormResponse> {
+    return prisma.formResponse.update({
+      where: { id },
+      data,
+      include: {
+        fields: true,
+      },
+    });
+  }
+
   async delete(id: number): Promise<void> {
     await prisma.formResponse.delete({ where: { id } });
   }

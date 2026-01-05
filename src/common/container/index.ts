@@ -51,6 +51,7 @@ import { CreateFormVersionService } from "@/modules/FormVersion/services/CreateF
 import { IFormResponseRepository } from "@/modules/FormResponse/repositories/IFormResponseRepository";
 import { FormResponseRepository } from "@/modules/FormResponse/repositories/FormResponseRepository";
 import { CreateFormResponseService } from "@/modules/FormResponse/services/CreateFormResponseService";
+import { UpdateFormResponseService } from "@/modules/FormResponse/services/UpdateFormResponseService";
 import { ListFormResponsesService } from "@/modules/FormResponse/services/ListFormResponsesService";
 import { DeleteFormResponseService } from "@/modules/FormResponse/services/DeleteFormResponseService";
 import { FormResponseController } from "@/modules/FormResponse/http/controller/formResponseController";
@@ -102,6 +103,7 @@ container.bind<DeleteFormVersionService>(Types.DeleteFormVersionService).to(Dele
 container.bind<FormVersionController>(Types.FormVersionController).to(FormVersionController);
 container.bind<IFormResponseRepository>(Types.FormResponseRepository).to(FormResponseRepository);
 container.bind<CreateFormResponseService>(Types.CreateFormResponseService).to(CreateFormResponseService);
+container.bind<UpdateFormResponseService>(Types.UpdateFormResponseService).to(UpdateFormResponseService);
 container.bind<ListFormResponsesService>(Types.ListFormResponsesService).to(ListFormResponsesService);
 container.bind<DeleteFormResponseService>(Types.DeleteFormResponseService).to(DeleteFormResponseService);
 container.bind<FormResponseController>(Types.FormResponseController).to(FormResponseController);
