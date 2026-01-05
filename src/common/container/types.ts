@@ -45,6 +45,12 @@ const Types = {
   DeleteFormFieldService: Symbol("DeleteFormFieldService"),
   ListFormFieldsService: Symbol("ListFormFieldsService"),
   FormFieldController: Symbol("FormFieldController"),
+  FormResponseRepository: Symbol("FormResponseRepository"),
+  CreateFormResponseService: Symbol("CreateFormResponseService"),
+  UpdateFormResponseService: Symbol("UpdateFormResponseService"),
+  ListFormResponsesService: Symbol("ListFormResponsesService"),
+  DeleteFormResponseService: Symbol("DeleteFormResponseService"),
+  FormResponseController: Symbol("FormResponseController"),
 };
 
 export default Types;
