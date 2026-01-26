@@ -69,7 +69,7 @@ export class FormResponseMetricsService {
   }
 
   async timeSeries(params: TimeSeriesParams) {
-    const interval = Prisma.raw(params.interval);
+    const interval = Prisma.sql`${params.interval}`;
     const dateColumn = getDateColumn(params.dateField);
 
     const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
