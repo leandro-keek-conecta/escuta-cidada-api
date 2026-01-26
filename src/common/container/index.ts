@@ -55,6 +55,8 @@ import { UpdateFormResponseService } from "@/modules/FormResponse/services/Updat
 import { ListFormResponsesService } from "@/modules/FormResponse/services/ListFormResponsesService";
 import { DeleteFormResponseService } from "@/modules/FormResponse/services/DeleteFormResponseService";
 import { FormResponseController } from "@/modules/FormResponse/http/controller/formResponseController";
+import { FormResponseMetricsService } from "@/modules/FormResponse/services/FormResponseMetricsService";
+import { FormResponseMetricsController } from "@/modules/FormResponse/http/controller/formResponseMetricsController";
 const container = new Container();
 
 container.bind<UserController>(Types.UserController).to(UserController);
@@ -107,4 +109,8 @@ container.bind<UpdateFormResponseService>(Types.UpdateFormResponseService).to(Up
 container.bind<ListFormResponsesService>(Types.ListFormResponsesService).to(ListFormResponsesService);
 container.bind<DeleteFormResponseService>(Types.DeleteFormResponseService).to(DeleteFormResponseService);
 container.bind<FormResponseController>(Types.FormResponseController).to(FormResponseController);
+container.bind<FormResponseMetricsService>(Types.FormResponseMetricsService).to(FormResponseMetricsService);
+container
+  .bind<FormResponseMetricsController>(Types.FormResponseMetricsController)
+  .to(FormResponseMetricsController);
 export default container;

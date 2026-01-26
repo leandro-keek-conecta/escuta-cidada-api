@@ -51,6 +51,8 @@ const Types = {
   ListFormResponsesService: Symbol("ListFormResponsesService"),
   DeleteFormResponseService: Symbol("DeleteFormResponseService"),
   FormResponseController: Symbol("FormResponseController"),
+  FormResponseMetricsService: Symbol("FormResponseMetricsService"),
+  FormResponseMetricsController: Symbol("FormResponseMetricsController"),
 };
 
 export default Types;

@@ -28,6 +28,12 @@ enum ProjetoAccessLevel {
   DASH_ONLY
 }
 
+enum FormResponseStatus {
+  STARTED
+  COMPLETED
+  ABANDONED
+}
+
 // =======================================
 // CORE: USER & PROJETO
 // =======================================
@@ -188,6 +194,7 @@ model FormField {
   ordem          Int
 
   formVersion    FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  responses      FormResponseField[]
 
   @@unique([formVersionId, name])
 }
@@ -199,6 +206,21 @@ model FormResponse {
   userId        Int?
   ip            String?
   userAgent     String?
+  status        FormResponseStatus @default(STARTED)
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  submittedAt   DateTime?
+  source        String?
+  channel       String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  deviceType    String?
+  os            String?
+  browser       String?
+  locale        String?
+  timezone      String?
+  metadata      Json?
 
   formVersion   FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
   projeto       Projeto     @relation(fields: [projetoId], references: [id], onDelete: Cascade)
@@ -207,15 +229,33 @@ model FormResponse {
   fields        FormResponseField[]
 
   createdAt     DateTime @default(now())
+
+  @@index([projetoId, createdAt])
+  @@index([formVersionId, createdAt])
+  @@index([projetoId, status, createdAt])
+  @@index([projetoId, submittedAt])
+  @@index([formVersionId, submittedAt])
+  @@index([projetoId, completedAt])
+  @@index([formVersionId, completedAt])
 }
 
 model FormResponseField {
   id          Int      @id @default(autoincrement())
   responseId  Int
+  fieldId     Int?
   fieldName   String
   value       String?
+  valueNumber Float?
+  valueBool   Boolean?
+  valueDate   DateTime?
+  valueJson   Json?
 
   response    FormResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  field       FormField? @relation(fields: [fieldId], references: [id], onDelete: SetNull)
 
-  @@index([fieldName])
+  @@index([fieldName, value])
+  @@index([responseId])
+  @@index([fieldId])
+  @@index([fieldId, valueNumber])
+  @@index([fieldId, valueDate])
 }
