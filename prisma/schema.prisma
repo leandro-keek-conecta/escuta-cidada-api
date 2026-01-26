@@ -232,6 +232,11 @@ model FormResponse {
 
   @@index([projetoId, createdAt])
   @@index([formVersionId, createdAt])
+  @@index([projetoId, status, createdAt])
+  @@index([projetoId, submittedAt])
+  @@index([formVersionId, submittedAt])
+  @@index([projetoId, completedAt])
+  @@index([formVersionId, completedAt])
 }
 
 model FormResponseField {
@@ -253,5 +258,4 @@ model FormResponseField {
   @@index([fieldId])
   @@index([fieldId, valueNumber])
   @@index([fieldId, valueDate])
-  @@index([projetoId, status, createdAt])
 }

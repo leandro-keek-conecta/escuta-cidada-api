@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node --experimental-specifier-resolution=node build/server.js",
     "dev": "tsx watch ./src/server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:metrics": "node --test --import tsx ./src/tests/formResponseMetricsService.test.ts"
   },
   "keywords": [],
   "author": "",

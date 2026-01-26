@@ -23,6 +23,12 @@ export class FormFieldRepository implements IFormFieldRepository {
     return await prisma.formField.findUnique({ where: { id } });
   }
 
+  async findByFormVersionId(formVersionId: number): Promise<FormField[]> {
+    return await prisma.formField.findMany({
+      where: { formVersionId },
+    });
+  }
+
   async getFormsField(): Promise<FormField[]> {
     return await prisma.formField.findMany();
   }

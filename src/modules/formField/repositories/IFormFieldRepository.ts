@@ -7,6 +7,7 @@ export interface IFormFieldRepository {
     data: Prisma.FormFieldUpdateInput
   ): Promise<FormField>;
   findById(id: number): Promise<FormField | null>;
+  findByFormVersionId(formVersionId: number): Promise<FormField[]>;
   getFormsField(): Promise<FormField[] | []>;
   delete(id: number): Promise<void>;
 }
