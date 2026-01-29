@@ -1,0 +1,45 @@
+# Formulario Publico
+
+## Funcionalidade
+- Consultar dados publicos de um formulario (projeto + form + versao ativa).
+
+## Relacionamentos
+- Projeto -> Form -> FormVersion (ativa) -> FormField.
+
+## Quando pode ou nao pode ser criado
+- Pode: projeto ativo e form existente com versao ativa.
+- Nao pode: projeto inativo; projeto inexistente; form inexistente; form sem versao ativa.
+
+## Restricoes
+- Sem autenticacao.
+
+## Criacao em conjunto
+- Nenhuma.
+
+## Rotas
+### GET /escuta-cidada-api/public/projetos/:projetoSlug/forms/id/:formId
+- Auth: nao
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/public/projetos/projeto-a/forms/id/1
+```
+
+**Exemplo de resposta**
+```json
+{
+  "message": "Formulario publico retornado com sucesso",
+  "data": {
+    "projeto": { "slug": "projeto-a", "name": "Projeto A", "corHex": "#FFAA00" },
+    "form": { "id": 1, "name": "Pesquisa", "description": "Form principal" },
+    "activeVersion": {
+      "id": 3,
+      "version": 1,
+      "schema": [],
+      "fields": [
+        { "id": 10, "name": "opiniao", "label": "Opiniao", "type": "text", "required": true, "options": null, "ordem": 1 }
+      ]
+    }
+  }
+}
+```
