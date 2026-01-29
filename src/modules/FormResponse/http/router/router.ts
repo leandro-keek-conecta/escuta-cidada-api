@@ -60,4 +60,10 @@ export async function routerFormResponse(app: FastifyInstance) {
     { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
     metricsController.statusFunnel.bind(metricsController)
   );
+
+  app.get(
+    "/metrics/report",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    metricsController.report.bind(metricsController)
+  );
 }

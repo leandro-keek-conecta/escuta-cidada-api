@@ -9,6 +9,7 @@ import { FormResponseMetricsService } from "../../services/FormResponseMetricsSe
 import {
   metricsDistributionSchema,
   metricsNumberStatsSchema,
+  metricsReportSchema,
   metricsStatusFunnelSchema,
   metricsTimeSeriesSchema,
 } from "../validators/metricsValidators";
@@ -64,6 +65,19 @@ export class FormResponseMetricsController {
     try {
       const params = metricsStatusFunnelSchema.parse(request.query);
       const data = await this.metricsService.statusFunnel(params);
+      return reply.status(StatusCodes.OK).send({ data });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async report(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const params = metricsReportSchema.parse(request.query);
+      const data = await this.metricsService.report(params);
       return reply.status(StatusCodes.OK).send({ data });
     } catch (error) {
       return this.handleError(reply, error);

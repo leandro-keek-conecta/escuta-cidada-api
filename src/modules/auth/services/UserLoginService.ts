@@ -30,7 +30,7 @@ class LoginService {
     }
 
     if (user.password && !(await argon2.verify(user.password, data.password))) {
-      throw new AppError("Password incorrect", 401);
+      throw new AppError("Login ou senha incorretos", 401);
     }
 
     const accessToken = jwt.sign({ userId: user.id }, SecurityConfig.jwt.key, {

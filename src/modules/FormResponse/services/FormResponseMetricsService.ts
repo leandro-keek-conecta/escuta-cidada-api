@@ -32,6 +32,17 @@ type NumberStatsParams = BaseFilters & {
 
 type FunnelParams = BaseFilters;
 
+type ReportParams = BaseFilters & {
+  dateField: MetricsDateField;
+  monthStart?: Date;
+  monthEnd?: Date;
+  dayStart?: Date;
+  dayEnd?: Date;
+  limitTopThemes: number;
+  limitTopNeighborhoods: number;
+  limitDistribution: number;
+};
+
 type SeriesRow = { bucket: Date; count: number | string };
 type DistributionRow = { value: any; count: number | string };
 type NumberStatsRow = {
@@ -59,6 +70,40 @@ function getDateColumn(field: MetricsDateField, alias?: string) {
 function normalizeCount(value: number | string) {
   return typeof value === "number" ? value : Number(value);
 }
+
+function formatBucketLabel(bucketIso: string, interval: MetricsInterval) {
+  if (interval === "month") {
+    return bucketIso.slice(0, 7);
+  }
+  if (interval === "day") {
+    return bucketIso.slice(0, 10);
+  }
+  return bucketIso;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeLabel(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "Nao informado";
+  }
+  return String(value);
+}
+
+const AGE_BUCKETS = [
+  { label: "Ate 18", min: 0, max: 18 },
+  { label: "19-25", min: 19, max: 25 },
+  { label: "26-35", min: 26, max: 35 },
+  { label: "36-45", min: 36, max: 45 },
+  { label: "46-60", min: 46, max: 60 },
+  { label: "60+", min: 61, max: Infinity },
+];
 
 @injectable()
 export class FormResponseMetricsService {
@@ -252,5 +297,180 @@ export class FormResponseMetricsService {
       status: row.status,
       count: row._count._all,
     }));
+  }
+
+  async report(params: ReportParams) {
+    const baseFilters: BaseFilters = {
+      projetoId: params.projetoId,
+      formVersionId: params.formVersionId,
+      status: params.status,
+      start: params.start,
+      end: params.end,
+    };
+
+    const monthFilters: BaseFilters = {
+      ...baseFilters,
+      start: params.monthStart ?? params.start,
+      end: params.monthEnd ?? params.end,
+    };
+
+    const dayFilters: BaseFilters = {
+      ...baseFilters,
+      start: params.dayStart ?? params.start,
+      end: params.dayEnd ?? params.end,
+    };
+
+    const [
+      statusFunnel,
+      topTemas,
+      topBairros,
+      genero,
+      campanha,
+      tipos,
+      anosNascimento,
+      mes,
+      dia,
+    ] = await Promise.all([
+      this.statusFunnel(baseFilters),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "opiniao",
+        valueType: "string",
+        limit: params.limitTopThemes,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "bairro",
+        valueType: "string",
+        limit: params.limitTopNeighborhoods,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "genero",
+        valueType: "string",
+        limit: params.limitDistribution,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "campanha",
+        valueType: "string",
+        limit: params.limitDistribution,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "tipo_opiniao",
+        valueType: "string",
+        limit: params.limitDistribution,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "ano_nascimento",
+        valueType: "string",
+        limit: 200,
+      }),
+      this.timeSeries({
+        ...monthFilters,
+        interval: "month",
+        dateField: params.dateField,
+      }),
+      this.timeSeries({
+        ...dayFilters,
+        interval: "day",
+        dateField: params.dateField,
+      }),
+    ]);
+
+    const cards = tipos.reduce(
+      (acc, row) => {
+        const count = normalizeCount(row.count);
+        const key = normalizeText(row.value);
+        acc.totalOpinions += count;
+        if (key === "reclamacao") {
+          acc.totalComplaints += count;
+        } else if (key === "elogio") {
+          acc.totalPraise += count;
+        } else if (key === "sugestao") {
+          acc.totalSuggestions += count;
+        }
+        return acc;
+      },
+      {
+        totalOpinions: 0,
+        totalComplaints: 0,
+        totalPraise: 0,
+        totalSuggestions: 0,
+      }
+    );
+
+    const referenceDate =
+      params.end ?? params.dayEnd ?? params.monthEnd ?? new Date();
+    const referenceYear = referenceDate.getFullYear();
+    const ageBuckets = new Map(AGE_BUCKETS.map((bucket) => [bucket.label, 0]));
+    let unknownAgeCount = 0;
+
+    for (const row of anosNascimento) {
+      const count = normalizeCount(row.count);
+      const year = Number.parseInt(String(row.value), 10);
+      if (!Number.isFinite(year)) {
+        unknownAgeCount += count;
+        continue;
+      }
+      const age = referenceYear - year;
+      if (!Number.isFinite(age) || age < 0 || age > 120) {
+        unknownAgeCount += count;
+        continue;
+      }
+      const bucket = AGE_BUCKETS.find(
+        (range) => age >= range.min && age <= range.max
+      );
+      if (!bucket) {
+        unknownAgeCount += count;
+        continue;
+      }
+      ageBuckets.set(bucket.label, (ageBuckets.get(bucket.label) ?? 0) + count);
+    }
+
+    const opinionsByAge = AGE_BUCKETS.map((bucket) => ({
+      label: bucket.label,
+      value: ageBuckets.get(bucket.label) ?? 0,
+    }));
+    if (unknownAgeCount > 0) {
+      opinionsByAge.push({ label: "Nao informado", value: unknownAgeCount });
+    }
+
+    return {
+      cards,
+      lineByMonth: mes.map((row) => ({
+        label: formatBucketLabel(row.bucket, "month"),
+        value: normalizeCount(row.count),
+      })),
+      lineByDay: dia.map((row) => ({
+        label: formatBucketLabel(row.bucket, "day"),
+        value: normalizeCount(row.count),
+      })),
+      topBairros: topBairros.map((row) => ({
+        label: normalizeLabel(row.value),
+        value: normalizeCount(row.count),
+      })),
+      opinionsByGender: genero.map((row) => ({
+        label: normalizeLabel(row.value),
+        value: normalizeCount(row.count),
+      })),
+      opinionsByAge,
+      campaignAcceptance: campanha.map((row) => ({
+        label: normalizeLabel(row.value),
+        value: normalizeCount(row.count),
+      })),
+      tipoOpiniao: tipos.map((row) => ({
+        label: normalizeLabel(row.value),
+        value: normalizeCount(row.count),
+      })),
+      topTemas: topTemas.map((row, index) => ({
+        id: index + 1,
+        tema: normalizeLabel(row.value),
+        total: normalizeCount(row.count),
+      })),
+      statusFunnel,
+    };
   }
 }
