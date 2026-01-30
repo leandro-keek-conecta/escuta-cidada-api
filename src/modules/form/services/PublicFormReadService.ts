@@ -24,10 +24,42 @@ type PublicFormDTO = {
   };
 };
 
+type PublicFormsBySlugDTO = {
+  projeto: { slug: string; name: string; corHex: string | null };
+  forms: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    activeVersion: {
+      id: number;
+      version: number;
+      schema: any;
+      fields: Array<{
+        id: number;
+        name: string;
+        label: string;
+        type: string;
+        required: boolean;
+        options: any;
+        ordem: number;
+      }>;
+    } | null;
+  }>;
+};
+
 @injectable()
 export class PublicFormReadService {
   @inject(Types.PublicFormReadRepository)
   private readonly repository!: IPublicFormReadRepository;
+
+  private slugify(value: string): string {
+    return value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+  }
 
   public async getPublicFormById(params: {
     projetoSlug: string;
@@ -57,6 +89,114 @@ export class PublicFormReadService {
     if (!activeVersion) {
       throw new AppError(
         "Formulário sem versão ativa",
+        StatusCodes.NOT_FOUND
+      );
+    }
+
+    return {
+      projeto: {
+        slug: projeto.slug,
+        name: projeto.name,
+        corHex: projeto.corHex,
+      },
+      form: {
+        id: form.id,
+        name: form.name,
+        description: form.description ?? null,
+      },
+      activeVersion: {
+        id: activeVersion.id,
+        version: activeVersion.version,
+        schema: activeVersion.schema,
+        fields: activeVersion.fields.map((field) => ({
+          id: field.id,
+          name: field.name,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          options: field.options,
+          ordem: field.ordem,
+        })),
+      },
+    };
+  }
+
+  public async listPublicFormsBySlug(params: {
+    projetoSlug: string;
+  }): Promise<PublicFormsBySlugDTO> {
+    const { projetoSlug } = params;
+
+    const projeto = await this.repository.getProjetoBySlug(projetoSlug);
+    if (!projeto) {
+      throw new AppError("Projeto nÃ£o encontrado", StatusCodes.NOT_FOUND);
+    }
+
+    if (!projeto.ativo) {
+      throw new AppError("Projeto inativo", StatusCodes.FORBIDDEN);
+    }
+
+    const forms = await this.repository.getActiveFormsByProjetoId(projeto.id);
+
+    return {
+      projeto: {
+        slug: projeto.slug,
+        name: projeto.name,
+        corHex: projeto.corHex,
+      },
+      forms: forms.map((form) => {
+        const activeVersion = form.versions[0] ?? null;
+        return {
+          id: form.id,
+          name: form.name,
+          description: form.description ?? null,
+          activeVersion: activeVersion
+            ? {
+                id: activeVersion.id,
+                version: activeVersion.version,
+                schema: activeVersion.schema,
+                fields: activeVersion.fields.map((field) => ({
+                  id: field.id,
+                  name: field.name,
+                  label: field.label,
+                  type: field.type,
+                  required: field.required,
+                  options: field.options,
+                  ordem: field.ordem,
+                })),
+              }
+            : null,
+        };
+      }),
+    };
+  }
+
+  public async getPublicFormBySlug(params: {
+    projetoSlug: string;
+    formSlug: string;
+  }): Promise<PublicFormDTO> {
+    const { projetoSlug, formSlug } = params;
+
+    const projeto = await this.repository.getProjetoBySlug(projetoSlug);
+    if (!projeto) {
+      throw new AppError("Projeto nÃ£o encontrado", StatusCodes.NOT_FOUND);
+    }
+
+    if (!projeto.ativo) {
+      throw new AppError("Projeto inativo", StatusCodes.FORBIDDEN);
+    }
+
+    const forms = await this.repository.getActiveFormsByProjetoId(projeto.id);
+    const slug = this.slugify(formSlug);
+    const form = forms.find((item) => this.slugify(item.name) === slug);
+
+    if (!form) {
+      throw new AppError("FormulÃ¡rio nÃ£o encontrado", StatusCodes.NOT_FOUND);
+    }
+
+    const activeVersion = form.versions[0];
+    if (!activeVersion) {
+      throw new AppError(
+        "FormulÃ¡rio sem versÃ£o ativa",
         StatusCodes.NOT_FOUND
       );
     }

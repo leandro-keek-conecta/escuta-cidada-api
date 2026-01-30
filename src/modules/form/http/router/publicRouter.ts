@@ -12,4 +12,14 @@ export async function routerPublicForm(app: FastifyInstance) {
     "/public/projetos/:projetoSlug/forms/id/:formId",
     controller.getById.bind(controller)
   );
+
+  app.get(
+    "/public/projetos/:projetoSlug/forms",
+    controller.listBySlug.bind(controller)
+  );
+
+  app.get(
+    "/public/projetos/:projetoSlug/forms/slug/:formSlug",
+    controller.getByFormSlug.bind(controller)
+  );
 }

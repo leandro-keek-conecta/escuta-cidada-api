@@ -31,6 +31,16 @@ export class PublicFormReadRepository implements IPublicFormReadRepository {
     });
   }
 
+  async getActiveFormsByProjetoId(
+    projetoId: number
+  ): Promise<PublicFormWithActiveVersion[]> {
+    return await prisma.form.findMany({
+      where: { projetoId },
+      orderBy: { id: "asc" },
+      include: activeVersionInclude,
+    });
+  }
+
   async getActiveFormByProjetoAndId({
     projetoId,
     formId,
