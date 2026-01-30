@@ -8,8 +8,10 @@ import AppError from "@/common/errors/AppError";
 import { FormResponseMetricsService } from "../../services/FormResponseMetricsService";
 import {
   metricsDistributionSchema,
+  metricsFiltersSchema,
   metricsNumberStatsSchema,
   metricsReportSchema,
+  metricsSummarySchema,
   metricsStatusFunnelSchema,
   metricsTimeSeriesSchema,
 } from "../validators/metricsValidators";
@@ -78,6 +80,32 @@ export class FormResponseMetricsController {
     try {
       const params = metricsReportSchema.parse(request.query);
       const data = await this.metricsService.report(params);
+      return reply.status(StatusCodes.OK).send({ data });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async summary(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const params = metricsSummarySchema.parse(request.query);
+      const data = await this.metricsService.summary(params);
+      return reply.status(StatusCodes.OK).send({ data });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async filters(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const params = metricsFiltersSchema.parse(request.query);
+      const data = await this.metricsService.filters(params);
       return reply.status(StatusCodes.OK).send({ data });
     } catch (error) {
       return this.handleError(reply, error);

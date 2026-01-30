@@ -43,6 +43,18 @@ type ReportParams = BaseFilters & {
   limitDistribution: number;
 };
 
+type SummaryParams = BaseFilters & {
+  day?: Date;
+  rangeStart?: Date;
+  rangeEnd?: Date;
+  limitTopThemes: number;
+  limitTopNeighborhoods: number;
+};
+
+type FiltersParams = BaseFilters & {
+  limit: number;
+};
+
 type SeriesRow = { bucket: Date; count: number | string };
 type DistributionRow = { value: any; count: number | string };
 type NumberStatsRow = {
@@ -471,6 +483,193 @@ export class FormResponseMetricsService {
         total: normalizeCount(row.count),
       })),
       statusFunnel,
+    };
+  }
+
+  async summary(params: SummaryParams) {
+    const referenceDay = params.day ?? new Date();
+    const dayStart = new Date(referenceDay);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(referenceDay);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const rangeEnd = params.rangeEnd ?? dayEnd;
+    const rangeStart =
+      params.rangeStart ??
+      new Date(
+        rangeEnd.getFullYear() - 1,
+        rangeEnd.getMonth(),
+        rangeEnd.getDate()
+      );
+
+    const baseFilters: BaseFilters = {
+      projetoId: params.projetoId,
+      formVersionId: params.formVersionId,
+      status: params.status,
+    };
+
+    const [totalOpinionsToday, topTemas, topBairros] = await Promise.all([
+      this.client.formResponse.count({
+        where: {
+          ...(baseFilters.projetoId
+            ? { projetoId: baseFilters.projetoId }
+            : {}),
+          ...(baseFilters.formVersionId
+            ? { formVersionId: baseFilters.formVersionId }
+            : {}),
+          ...(baseFilters.status ? { status: baseFilters.status } : {}),
+          createdAt: { gte: dayStart, lte: dayEnd },
+        },
+      }),
+      this.distribution({
+        ...baseFilters,
+        start: rangeStart,
+        end: rangeEnd,
+        fieldName: "opiniao",
+        valueType: "string",
+        limit: params.limitTopThemes,
+      }),
+      this.distribution({
+        ...baseFilters,
+        start: rangeStart,
+        end: rangeEnd,
+        fieldName: "bairro",
+        valueType: "string",
+        limit: params.limitTopNeighborhoods,
+      }),
+    ]);
+
+    return {
+      day: {
+        start: dayStart.toISOString(),
+        end: dayEnd.toISOString(),
+      },
+      range: {
+        start: rangeStart.toISOString(),
+        end: rangeEnd.toISOString(),
+      },
+      totalOpinionsToday,
+      topTemas: topTemas.map((row, index) => ({
+        id: index + 1,
+        tema: normalizeLabel(row.value),
+        total: normalizeCount(row.count),
+      })),
+      topBairros: topBairros.map((row) => ({
+        label: normalizeLabel(row.value),
+        value: normalizeCount(row.count),
+      })),
+    };
+  }
+
+  async filters(params: FiltersParams) {
+    const baseFilters: BaseFilters = {
+      projetoId: params.projetoId,
+      formVersionId: params.formVersionId,
+      status: params.status,
+      start: params.start,
+      end: params.end,
+    };
+
+    const [
+      tipoOpiniao,
+      temas,
+      genero,
+      bairros,
+      campanhas,
+      anosNascimento,
+    ] = await Promise.all([
+      this.distribution({
+        ...baseFilters,
+        fieldName: "tipo_opiniao",
+        valueType: "string",
+        limit: params.limit,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "opiniao",
+        valueType: "string",
+        limit: params.limit,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "genero",
+        valueType: "string",
+        limit: params.limit,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "bairro",
+        valueType: "string",
+        limit: params.limit,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "campanha",
+        valueType: "string",
+        limit: params.limit,
+      }),
+      this.distribution({
+        ...baseFilters,
+        fieldName: "ano_nascimento",
+        valueType: "string",
+        limit: 200,
+      }),
+    ]);
+
+    const referenceDate = params.end ?? new Date();
+    const referenceYear = referenceDate.getFullYear();
+    const ageBuckets = new Map(AGE_BUCKETS.map((bucket) => [bucket.label, 0]));
+    let unknownAgeCount = 0;
+
+    for (const row of anosNascimento) {
+      const count = normalizeCount(row.count);
+      const year = Number.parseInt(String(row.value), 10);
+      if (!Number.isFinite(year)) {
+        unknownAgeCount += count;
+        continue;
+      }
+      const age = referenceYear - year;
+      if (!Number.isFinite(age) || age < 0 || age > 120) {
+        unknownAgeCount += count;
+        continue;
+      }
+      const bucket = AGE_BUCKETS.find(
+        (range) => age >= range.min && age <= range.max
+      );
+      if (!bucket) {
+        unknownAgeCount += count;
+        continue;
+      }
+      ageBuckets.set(bucket.label, (ageBuckets.get(bucket.label) ?? 0) + count);
+    }
+
+    const faixaEtaria = AGE_BUCKETS.map((bucket) => ({
+      label: bucket.label,
+      value: bucket.label,
+      count: ageBuckets.get(bucket.label) ?? 0,
+    }));
+    if (unknownAgeCount > 0) {
+      faixaEtaria.push({
+        label: "Nao informado",
+        value: "Nao informado",
+        count: unknownAgeCount,
+      });
+    }
+
+    const toOptions = (rows: DistributionRow[]) =>
+      rows.map((row) => ({
+        label: normalizeLabel(row.value),
+        value: normalizeLabel(row.value),
+        count: normalizeCount(row.count),
+      }));
+
+    return {
+      tipoOpiniao: toOptions(tipoOpiniao),
+      temas: toOptions(temas),
+      genero: toOptions(genero),
+      bairros: toOptions(bairros),
+      campanhas: toOptions(campanhas),
+      faixaEtaria,
     };
   }
 }

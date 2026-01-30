@@ -54,6 +54,8 @@ import { CreateFormResponseService } from "@/modules/FormResponse/services/Creat
 import { UpdateFormResponseService } from "@/modules/FormResponse/services/UpdateFormResponseService";
 import { ListFormResponsesService } from "@/modules/FormResponse/services/ListFormResponsesService";
 import { DeleteFormResponseService } from "@/modules/FormResponse/services/DeleteFormResponseService";
+import { ListFormOpinionsService } from "@/modules/FormResponse/services/ListFormOpinionsService";
+import { ListFormResponsesRawService } from "@/modules/FormResponse/services/ListFormResponsesRawService";
 import { FormResponseController } from "@/modules/FormResponse/http/controller/formResponseController";
 import { FormResponseMetricsService } from "@/modules/FormResponse/services/FormResponseMetricsService";
 import { FormResponseMetricsController } from "@/modules/FormResponse/http/controller/formResponseMetricsController";
@@ -108,6 +110,8 @@ container.bind<CreateFormResponseService>(Types.CreateFormResponseService).to(Cr
 container.bind<UpdateFormResponseService>(Types.UpdateFormResponseService).to(UpdateFormResponseService);
 container.bind<ListFormResponsesService>(Types.ListFormResponsesService).to(ListFormResponsesService);
 container.bind<DeleteFormResponseService>(Types.DeleteFormResponseService).to(DeleteFormResponseService);
+container.bind<ListFormOpinionsService>(Types.ListFormOpinionsService).to(ListFormOpinionsService);
+container.bind<ListFormResponsesRawService>(Types.ListFormResponsesRawService).to(ListFormResponsesRawService);
 container.bind<FormResponseController>(Types.FormResponseController).to(FormResponseController);
 container.bind<FormResponseMetricsService>(Types.FormResponseMetricsService).to(FormResponseMetricsService);
 container

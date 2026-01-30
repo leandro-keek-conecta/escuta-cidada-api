@@ -134,3 +134,71 @@ Authorization: Bearer <token>
 ```json
 { "message": "Resposta deletada" }
 ```
+
+### GET /escuta-cidada-api/form-response/opinions
+- Auth: sim (ADMIN ou SUPERADMIN)
+- Query:
+  - `projetoId` (obrigatorio)
+  - `start`, `end` (opcionais, data ISO)
+  - `limit` (opcional, default 200, max 500)
+  - `offset` (opcional, default 0)
+  - `fieldName` (opcional, default "opiniao")
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/form-response/opinions?projetoId=5&start=2025-01-29&end=2026-01-29&limit=200
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta**
+```json
+{
+  "data": {
+    "total": 120,
+    "limit": 200,
+    "offset": 0,
+    "items": [
+      { "responseId": 100, "value": "Gostei do atendimento", "createdAt": "2026-01-29T12:10:00.000Z" }
+    ]
+  }
+}
+```
+
+### GET /escuta-cidada-api/form-response/raw
+- Auth: sim (ADMIN ou SUPERADMIN)
+- Query:
+  - `projetoId` (obrigatorio)
+  - `formVersionId` (opcional)
+  - `start`, `end` (opcionais, data ISO)
+  - `limit` (opcional, default 200, max 500)
+  - `offset` (opcional, default 0)
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/form-response/raw?projetoId=5&start=2025-01-29&end=2026-01-29&limit=50
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta (resumo)**
+```json
+{
+  "data": {
+    "total": 120,
+    "limit": 50,
+    "offset": 0,
+    "items": [
+      {
+        "id": 100,
+        "projetoId": 5,
+        "formVersionId": 3,
+        "status": "COMPLETED",
+        "userId": 1,
+        "createdAt": "2026-01-29T12:00:00.000Z",
+        "fields": [ { "fieldName": "opiniao", "value": "Texto..." } ],
+        "user": { "id": 1, "email": "user@exemplo.com" },
+        "projeto": { "id": 5, "name": "Projeto X" }
+      }
+    ]
+  }
+}
+```

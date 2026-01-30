@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { inject, injectable } from "inversify";
 import { StatusCodes } from "http-status-codes";
+import { ZodError } from "zod";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
@@ -8,7 +9,11 @@ import { CreateFormResponseService } from "../../services/CreateFormResponseServ
 import { ListFormResponsesService } from "../../services/ListFormResponsesService";
 import { DeleteFormResponseService } from "../../services/DeleteFormResponseService";
 import { UpdateFormResponseService } from "../../services/UpdateFormResponseService";
+import { ListFormOpinionsService } from "../../services/ListFormOpinionsService";
+import { ListFormResponsesRawService } from "../../services/ListFormResponsesRawService";
 import { FormResponseDoesNotExist } from "../../errors/FormResponseDoesNotExist";
+import { opinionsQuerySchema } from "../validators/opinionsValidator";
+import { rawListQuerySchema } from "../validators/rawListValidator";
 
 @injectable()
 export class FormResponseController {
@@ -16,6 +21,8 @@ export class FormResponseController {
     @inject(Types.UpdateFormResponseService) private readonly updateFormResponseService!: UpdateFormResponseService;
     @inject(Types.ListFormResponsesService) private readonly listFormResponsesService!: ListFormResponsesService;
     @inject(Types.DeleteFormResponseService) private readonly deleteFormResponseService!: DeleteFormResponseService;
+    @inject(Types.ListFormOpinionsService) private readonly listFormOpinionsService!: ListFormOpinionsService;
+    @inject(Types.ListFormResponsesRawService) private readonly listFormResponsesRawService!: ListFormResponsesRawService;
 
 
   async create(
@@ -100,7 +107,39 @@ export class FormResponseController {
     }
   }
 
+  async opinions(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const params = opinionsQuerySchema.parse(request.query);
+      const data = await this.listFormOpinionsService.execute(params);
+      return reply.status(StatusCodes.OK).send({ data });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async raw(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const params = rawListQuerySchema.parse(request.query);
+      const data = await this.listFormResponsesRawService.execute(params);
+      return reply.status(StatusCodes.OK).send({ data });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
   private handleError(reply: FastifyReply, error: unknown): FastifyReply {
+    if (error instanceof ZodError) {
+      return reply
+        .status(StatusCodes.BAD_REQUEST)
+        .send({ message: error.format() });
+    }
+
     if (error instanceof FormResponseDoesNotExist) {
       return reply
         .status(StatusCodes.NOT_FOUND)

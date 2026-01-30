@@ -50,6 +50,8 @@ const Types = {
   UpdateFormResponseService: Symbol("UpdateFormResponseService"),
   ListFormResponsesService: Symbol("ListFormResponsesService"),
   DeleteFormResponseService: Symbol("DeleteFormResponseService"),
+  ListFormOpinionsService: Symbol("ListFormOpinionsService"),
+  ListFormResponsesRawService: Symbol("ListFormResponsesRawService"),
   FormResponseController: Symbol("FormResponseController"),
   FormResponseMetricsService: Symbol("FormResponseMetricsService"),
   FormResponseMetricsController: Symbol("FormResponseMetricsController"),

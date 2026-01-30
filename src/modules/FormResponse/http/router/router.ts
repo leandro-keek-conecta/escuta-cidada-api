@@ -38,6 +38,18 @@ export async function routerFormResponse(app: FastifyInstance) {
   );
 
   app.get(
+    "/opinions",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    controller.opinions.bind(controller)
+  );
+
+  app.get(
+    "/raw",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    controller.raw.bind(controller)
+  );
+
+  app.get(
     "/metrics/timeseries",
     { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
     metricsController.timeSeries.bind(metricsController)
@@ -59,6 +71,18 @@ export async function routerFormResponse(app: FastifyInstance) {
     "/metrics/status-funnel",
     { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
     metricsController.statusFunnel.bind(metricsController)
+  );
+
+  app.get(
+    "/metrics/summary",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    metricsController.summary.bind(metricsController)
+  );
+
+  app.get(
+    "/metrics/filters",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    metricsController.filters.bind(metricsController)
   );
 
   app.get(

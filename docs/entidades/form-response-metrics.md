@@ -138,3 +138,58 @@ Authorization: Bearer <token>
   }
 }
 ```
+
+### GET /summary
+- Auth: sim (ADMIN ou SUPERADMIN)
+- Query:
+  - `projetoId` ou `formVersionId` (obrigatorio)
+  - `day` (opcional, data ISO - se nao vier, usa hoje)
+  - `rangeStart`, `rangeEnd` (opcionais, data ISO - se nao vier, usa ultimo ano)
+  - `limitTopThemes` (opcional, default 5)
+  - `limitTopNeighborhoods` (opcional, default 5)
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/form-response/metrics/summary?projetoId=10&day=2026-01-29&limitTopThemes=5&limitTopNeighborhoods=5
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta (resumo)**
+```json
+{
+  "data": {
+    "day": { "start": "2026-01-29T00:00:00.000Z", "end": "2026-01-29T23:59:59.999Z" },
+    "range": { "start": "2025-01-29T00:00:00.000Z", "end": "2026-01-29T23:59:59.999Z" },
+    "totalOpinionsToday": 120,
+    "topTemas": [{ "id": 1, "tema": "Atendimento", "total": 20 }],
+    "topBairros": [{ "label": "Centro", "value": 12 }]
+  }
+}
+```
+
+### GET /filters
+- Auth: sim (ADMIN ou SUPERADMIN)
+- Query:
+  - `projetoId` ou `formVersionId` (obrigatorio)
+  - `start`, `end`, `status` (opcionais)
+  - `limit` (opcional, default 200, max 200)
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/form-response/metrics/filters?projetoId=10&limit=200
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta (resumo)**
+```json
+{
+  "data": {
+    "tipoOpiniao": [{ "label": "Elogio", "value": "Elogio", "count": 80 }],
+    "temas": [{ "label": "Atendimento", "value": "Atendimento", "count": 20 }],
+    "genero": [{ "label": "Feminino", "value": "Feminino", "count": 40 }],
+    "bairros": [{ "label": "Centro", "value": "Centro", "count": 12 }],
+    "campanhas": [{ "label": "Campanha A", "value": "Campanha A", "count": 12 }],
+    "faixaEtaria": [{ "label": "26-35", "value": "26-35", "count": 22 }]
+  }
+}
+```
