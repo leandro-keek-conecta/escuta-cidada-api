@@ -172,6 +172,7 @@ Authorization: Bearer <token>
   - `start`, `end` (opcionais, data ISO)
   - `limit` (opcional, default 200, max 500)
   - `offset` (opcional, default 0)
+  - `select` (opcional, lista separada por virgula com nomes de campos do formulario)
 
 **Exemplo de uso**
 ```
@@ -197,6 +198,31 @@ Authorization: Bearer <token>
         "fields": [ { "fieldName": "opiniao", "value": "Texto..." } ],
         "user": { "id": 1, "email": "user@exemplo.com" },
         "projeto": { "id": 5, "name": "Projeto X" }
+      }
+    ]
+  }
+}
+```
+
+**Exemplo de uso com select**
+```
+GET /escuta-cidada-api/form-response/raw?projetoId=5&select=nome,telefone,opiniao,texto_opiniao
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta (select)**
+```json
+{
+  "data": {
+    "total": 120,
+    "limit": 200,
+    "offset": 0,
+    "items": [
+      {
+        "nome": "Maria Silva",
+        "telefone": "99999-9999",
+        "opiniao": "Saude",
+        "texto_opiniao": "Gostei do atendimento"
       }
     ]
   }
