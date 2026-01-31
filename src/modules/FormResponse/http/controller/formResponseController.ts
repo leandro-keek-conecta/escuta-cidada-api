@@ -70,7 +70,7 @@ export class FormResponseController {
     if (Number.isNaN(idNum)) {
       return reply
         .status(StatusCodes.BAD_REQUEST)
-        .send({ message: "id ゼ obrigatИrio e deve ser numゼrico" });
+        .send({ message: "id é obrigatório e deve ser numérico" });
     }
 
     try {

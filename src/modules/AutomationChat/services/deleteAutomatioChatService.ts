@@ -13,7 +13,7 @@ export class DeleteAutomationChatService {
     try {
       const automationChat = await this.automationChatRepository.findById(id);
       if (!automationChat) {
-        throw new AppError("AutomationChat nao encontrado.", StatusCodes.NOT_FOUND);
+        throw new AppError("AutomationChat não encontrado.", StatusCodes.NOT_FOUND);
       }
 
       await this.automationChatRepository.delete(id);

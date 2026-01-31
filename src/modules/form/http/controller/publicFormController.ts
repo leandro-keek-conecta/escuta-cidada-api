@@ -52,7 +52,7 @@ export class PublicFormController {
       });
 
       return reply.status(StatusCodes.OK).send({
-        message: "FormulÃ¡rios pÃºblicos retornados com sucesso",
+        message: "Formulários públicos retornados com sucesso",
         data: result,
       });
     } catch (error: any) {
@@ -75,7 +75,7 @@ export class PublicFormController {
       });
 
       return reply.status(StatusCodes.OK).send({
-        message: "FormulÃ¡rio pÃºblico retornado com sucesso",
+        message: "Formulário público retornado com sucesso",
         data: result,
       });
     } catch (error: any) {

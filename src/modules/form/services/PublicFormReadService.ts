@@ -128,7 +128,7 @@ export class PublicFormReadService {
 
     const projeto = await this.repository.getProjetoBySlug(projetoSlug);
     if (!projeto) {
-      throw new AppError("Projeto nÃ£o encontrado", StatusCodes.NOT_FOUND);
+      throw new AppError("Projeto não encontrado", StatusCodes.NOT_FOUND);
     }
 
     if (!projeto.ativo) {
@@ -178,7 +178,7 @@ export class PublicFormReadService {
 
     const projeto = await this.repository.getProjetoBySlug(projetoSlug);
     if (!projeto) {
-      throw new AppError("Projeto nÃ£o encontrado", StatusCodes.NOT_FOUND);
+      throw new AppError("Projeto não encontrado", StatusCodes.NOT_FOUND);
     }
 
     if (!projeto.ativo) {
@@ -190,13 +190,13 @@ export class PublicFormReadService {
     const form = forms.find((item) => this.slugify(item.name) === slug);
 
     if (!form) {
-      throw new AppError("FormulÃ¡rio nÃ£o encontrado", StatusCodes.NOT_FOUND);
+      throw new AppError("Formulário não encontrado", StatusCodes.NOT_FOUND);
     }
 
     const activeVersion = form.versions[0];
     if (!activeVersion) {
       throw new AppError(
-        "FormulÃ¡rio sem versÃ£o ativa",
+        "Formulário sem versão ativa",
         StatusCodes.NOT_FOUND
       );
     }

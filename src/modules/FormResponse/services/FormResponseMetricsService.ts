@@ -103,7 +103,7 @@ function normalizeText(value: unknown) {
 
 function normalizeLabel(value: unknown) {
   if (value === null || value === undefined || value === "") {
-    return "Nao informado";
+    return "Não informado";
   }
   return String(value);
 }
@@ -447,7 +447,7 @@ export class FormResponseMetricsService {
       value: ageBuckets.get(bucket.label) ?? 0,
     }));
     if (unknownAgeCount > 0) {
-      opinionsByAge.push({ label: "Nao informado", value: unknownAgeCount });
+      opinionsByAge.push({ label: "Não informado", value: unknownAgeCount });
     }
 
     return {
@@ -650,8 +650,8 @@ export class FormResponseMetricsService {
     }));
     if (unknownAgeCount > 0) {
       faixaEtaria.push({
-        label: "Nao informado",
-        value: "Nao informado",
+        label: "Não informado",
+        value: "Não informado",
         count: unknownAgeCount,
       });
     }
