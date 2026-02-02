@@ -46,6 +46,13 @@ export class ListFormResponsesRawService {
 
     if (params.select?.length) {
       const selected = params.select;
+      const dateKeys = new Set([
+        "createdAt",
+        "startedAt",
+        "submittedAt",
+        "completedAt",
+      ]);
+      const selectedFields = selected.filter((field) => !dateKeys.has(field));
       const [items, total] = await Promise.all([
         this.client.formResponse.findMany({
           where,
@@ -53,6 +60,14 @@ export class ListFormResponsesRawService {
           skip: params.offset,
           take: params.limit,
           select: {
+            ...(params.includeDates
+              ? {
+                  createdAt: true,
+                  startedAt: true,
+                  submittedAt: true,
+                  completedAt: true,
+                }
+              : {}),
             fields: {
               where: { fieldName: { in: selected } },
               select: {
@@ -71,11 +86,29 @@ export class ListFormResponsesRawService {
 
       const normalized = items.map((item) => {
         const record: Record<string, unknown> = {};
-        for (const fieldName of selected) {
+        for (const fieldName of selectedFields) {
           record[fieldName] = null;
         }
         for (const field of item.fields) {
           record[field.fieldName] = normalizeValue(field);
+        }
+        if (params.includeDates) {
+          record.createdAt =
+            "createdAt" in item && item.createdAt
+              ? item.createdAt.toISOString()
+              : null;
+          record.startedAt =
+            "startedAt" in item && item.startedAt
+              ? item.startedAt.toISOString()
+              : null;
+          record.submittedAt =
+            "submittedAt" in item && item.submittedAt
+              ? item.submittedAt.toISOString()
+              : null;
+          record.completedAt =
+            "completedAt" in item && item.completedAt
+              ? item.completedAt.toISOString()
+              : null;
         }
         return record;
       });

@@ -7,6 +7,8 @@ const typeMapper: Record<string, z.ZodTypeAny> = {
   number: z.coerce.number(),
   date: z.coerce.date(),
   boolean: z.coerce.boolean(),
+  switch: z.coerce.boolean(),
+  select: z.string(),
 };
 
 // 2. O Mapa de Regras (Seus "Ajustes Finos")
@@ -26,13 +28,20 @@ const ruleMappers: Record<string, (v: any, val: any) => z.ZodTypeAny> = {
   },
 };
 
-export function createDynamicSchema(fields: any[]) {
+export function createDynamicSchema(
+  fields: any[],
+  options?: { ignoreRequired?: boolean }
+) {
   const shape: Record<string, z.ZodTypeAny> = {};
 
   fields.forEach((field) => {
     // PASSO A: Identificar o validador base (Sem IFs repetitivos!) 🚀
     // Acessamos direto pelo nome. Se field.type for "text", ele pega typeMapper.text
-    let validator = typeMapper[field.type];
+    const normalizedType =
+      typeof field.type === "string"
+        ? field.type.toLowerCase()
+        : String(field.type ?? "").toLowerCase();
+    let validator = typeMapper[normalizedType];
 
     // Segurança: Se vier um tipo que não existe (ex: "file"), ignoramos ou damos erro
     if (!validator) return;
@@ -48,7 +57,9 @@ export function createDynamicSchema(fields: any[]) {
 
     // PASSO C: Verificar Opcional
     // Foi deixado por último porque o .optional() muda o tipo do objeto
-    if (field.required === false) {
+    if (options?.ignoreRequired) {
+      validator = validator.optional();
+    } else if (field.required === false) {
       validator = validator.optional();
     }
 

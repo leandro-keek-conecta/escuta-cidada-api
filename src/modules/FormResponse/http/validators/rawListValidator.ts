@@ -24,6 +24,7 @@ export const rawListQuerySchema = Z.object({
   limit: Z.coerce.number().int().positive().max(500).default(200),
   offset: Z.coerce.number().int().nonnegative().default(0),
   select: Z.preprocess(parseSelect, Z.array(Z.string().trim().min(1)).optional()),
+  includeDates: Z.coerce.boolean().optional().default(true),
 });
 
 export type RawListQueryInput = Z.infer<typeof rawListQuerySchema>;

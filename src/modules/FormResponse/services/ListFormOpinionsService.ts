@@ -35,7 +35,7 @@ export class ListFormOpinionsService {
     const [items, total] = await Promise.all([
       this.client.formResponseField.findMany({
         where,
-        orderBy: { responseId: "desc" },
+        orderBy: [{ response: { createdAt: "desc" } }, { responseId: "desc" }],
         skip: params.offset,
         take: params.limit,
         select: {
