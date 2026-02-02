@@ -312,6 +312,27 @@ export class FormResponseMetricsService {
   }
 
   async report(params: ReportParams) {
+    const toStartOfDay = (value: Date) => {
+      const date = new Date(value);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
+    const toEndOfDay = (value: Date) => {
+      const date = new Date(value);
+      date.setHours(23, 59, 59, 999);
+      return date;
+    };
+
+    const addDays = (value: Date, days: number) => {
+      const date = new Date(value);
+      date.setDate(date.getDate() + days);
+      return date;
+    };
+
+    const toDateKey = (value: Date) =>
+      value.toISOString().slice(0, 10);
+
     const baseFilters: BaseFilters = {
       projetoId: params.projetoId,
       formVersionId: params.formVersionId,
@@ -326,10 +347,13 @@ export class FormResponseMetricsService {
       end: params.monthEnd ?? params.end,
     };
 
+    const dayStart = params.dayStart ? toStartOfDay(params.dayStart) : undefined;
+    const dayEnd = params.dayEnd ? toEndOfDay(params.dayEnd) : undefined;
+
     const dayFilters: BaseFilters = {
       ...baseFilters,
-      start: params.dayStart ?? params.start,
-      end: params.dayEnd ?? params.end,
+      start: dayStart ?? params.start,
+      end: dayEnd ?? params.end,
     };
 
     const [
@@ -450,16 +474,34 @@ export class FormResponseMetricsService {
       opinionsByAge.push({ label: "Não informado", value: unknownAgeCount });
     }
 
+    const daySeries = dia.map((row) => ({
+      label: formatBucketLabel(row.bucket, "day"),
+      value: normalizeCount(row.count),
+    }));
+
+    if (dayStart && dayEnd) {
+      const dayMap = new Map(
+        daySeries.map((item) => [item.label, item.value])
+      );
+      const filled: { label: string; value: number }[] = [];
+      let cursor = toStartOfDay(dayStart);
+      const end = toEndOfDay(dayEnd);
+
+      while (cursor <= end) {
+        const key = toDateKey(cursor);
+        filled.push({ label: key, value: dayMap.get(key) ?? 0 });
+        cursor = addDays(cursor, 1);
+      }
+      daySeries.splice(0, daySeries.length, ...filled);
+    }
+
     return {
       cards,
       lineByMonth: mes.map((row) => ({
         label: formatBucketLabel(row.bucket, "month"),
         value: normalizeCount(row.count),
       })),
-      lineByDay: dia.map((row) => ({
-        label: formatBucketLabel(row.bucket, "day"),
-        value: normalizeCount(row.count),
-      })),
+      lineByDay: daySeries,
       topBairros: topBairros.map((row) => ({
         label: normalizeLabel(row.value),
         value: normalizeCount(row.count),
