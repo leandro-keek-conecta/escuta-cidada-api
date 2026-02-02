@@ -50,6 +50,12 @@ export async function routerFormResponse(app: FastifyInstance) {
   );
 
   app.get(
+    "/exists",
+    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
+    controller.exists.bind(controller)
+  );
+
+  app.get(
     "/metrics/timeseries",
     { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
     metricsController.timeSeries.bind(metricsController)

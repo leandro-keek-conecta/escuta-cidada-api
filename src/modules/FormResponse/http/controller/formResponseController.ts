@@ -11,9 +11,11 @@ import { DeleteFormResponseService } from "../../services/DeleteFormResponseServ
 import { UpdateFormResponseService } from "../../services/UpdateFormResponseService";
 import { ListFormOpinionsService } from "../../services/ListFormOpinionsService";
 import { ListFormResponsesRawService } from "../../services/ListFormResponsesRawService";
+import { CheckFormResponseFieldExistsService } from "../../services/CheckFormResponseFieldExistsService";
 import { FormResponseDoesNotExist } from "../../errors/FormResponseDoesNotExist";
 import { opinionsQuerySchema } from "../validators/opinionsValidator";
 import { rawListQuerySchema } from "../validators/rawListValidator";
+import { formResponseExistsQuerySchema } from "../validators/existsValidator";
 
 @injectable()
 export class FormResponseController {
@@ -23,6 +25,8 @@ export class FormResponseController {
     @inject(Types.DeleteFormResponseService) private readonly deleteFormResponseService!: DeleteFormResponseService;
     @inject(Types.ListFormOpinionsService) private readonly listFormOpinionsService!: ListFormOpinionsService;
     @inject(Types.ListFormResponsesRawService) private readonly listFormResponsesRawService!: ListFormResponsesRawService;
+    @inject(Types.CheckFormResponseFieldExistsService)
+    private readonly checkFormResponseFieldExistsService!: CheckFormResponseFieldExistsService;
 
 
   async create(
@@ -127,6 +131,19 @@ export class FormResponseController {
     try {
       const params = rawListQuerySchema.parse(request.query);
       const data = await this.listFormResponsesRawService.execute(params);
+      return reply.status(StatusCodes.OK).send({ data });
+    } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async exists(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const params = formResponseExistsQuerySchema.parse(request.query);
+      const data = await this.checkFormResponseFieldExistsService.execute(params);
       return reply.status(StatusCodes.OK).send({ data });
     } catch (error) {
       return this.handleError(reply, error);
