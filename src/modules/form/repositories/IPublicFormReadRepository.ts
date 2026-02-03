@@ -26,6 +26,9 @@ export interface IPublicFormReadRepository {
       }
     | null
   >;
+  getActiveFormsByProjetoId(
+    projetoId: number
+  ): Promise<PublicFormWithActiveVersion[]>;
   getActiveFormByProjetoAndId(params: {
     projetoId: number;
     formId: number;

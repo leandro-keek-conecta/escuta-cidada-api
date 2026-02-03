@@ -20,6 +20,53 @@ export const metricsTimeSeriesSchema = baseFiltersSchema
     message: "projetoId ou formVersionId obrigatorio",
   });
 
+export const metricsReportSchema = baseFiltersSchema
+  .extend({
+    dateField: Z
+      .enum(["createdAt", "submittedAt", "completedAt", "startedAt"])
+      .default("createdAt"),
+    monthStart: Z.coerce.date().optional(),
+    monthEnd: Z.coerce.date().optional(),
+    dayStart: Z.coerce.date().optional(),
+    dayEnd: Z.coerce.date().optional(),
+    limitTopThemes: Z.coerce.number().int().positive().max(200).default(10),
+    limitTopNeighborhoods: Z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(200)
+      .default(10),
+    limitDistribution: Z.coerce.number().int().positive().max(200).default(50),
+  })
+  .refine((data) => data.projetoId || data.formVersionId, {
+    message: "projetoId ou formVersionId obrigatorio",
+  });
+
+export const metricsSummarySchema = baseFiltersSchema
+  .extend({
+    day: Z.coerce.date().optional(),
+    rangeStart: Z.coerce.date().optional(),
+    rangeEnd: Z.coerce.date().optional(),
+    limitTopThemes: Z.coerce.number().int().positive().max(200).default(5),
+    limitTopNeighborhoods: Z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(200)
+      .default(5),
+  })
+  .refine((data) => data.projetoId || data.formVersionId, {
+    message: "projetoId ou formVersionId obrigatorio",
+  });
+
+export const metricsFiltersSchema = baseFiltersSchema
+  .extend({
+    limit: Z.coerce.number().int().positive().max(200).default(200),
+  })
+  .refine((data) => data.projetoId || data.formVersionId, {
+    message: "projetoId ou formVersionId obrigatorio",
+  });
+
 export const metricsDistributionSchema = baseFiltersSchema
   .extend({
     fieldId: Z.coerce.number().int().positive().optional(),
@@ -53,6 +100,9 @@ export const metricsStatusFunnelSchema = baseFiltersSchema.refine(
 );
 
 export type MetricsTimeSeriesInput = Z.infer<typeof metricsTimeSeriesSchema>;
+export type MetricsReportInput = Z.infer<typeof metricsReportSchema>;
+export type MetricsSummaryInput = Z.infer<typeof metricsSummarySchema>;
+export type MetricsFiltersInput = Z.infer<typeof metricsFiltersSchema>;
 export type MetricsDistributionInput = Z.infer<typeof metricsDistributionSchema>;
 export type MetricsNumberStatsInput = Z.infer<typeof metricsNumberStatsSchema>;
 export type MetricsStatusFunnelInput = Z.infer<typeof metricsStatusFunnelSchema>;

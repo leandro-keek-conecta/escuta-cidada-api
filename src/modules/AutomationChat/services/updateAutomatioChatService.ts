@@ -40,7 +40,7 @@ export class UpdateAutomationChatService {
         await this.automationChatRepository.findById(id);
 
       if (!existingAutomation) {
-        throw new AppError("AutomationChat nao encontrado.", {
+        throw new AppError("AutomationChat não encontrado.", {
           status: StatusCodes.NOT_FOUND,
         });
       }
@@ -91,7 +91,7 @@ export class UpdateAutomationChatService {
         await this.automationChatRepository.update(id, updateData);
 
       if (!updatedAutomation) {
-        throw new AppError("AutomationChat nao encontrado.", {
+        throw new AppError("AutomationChat não encontrado.", {
           status: StatusCodes.NOT_FOUND,
         });
       }

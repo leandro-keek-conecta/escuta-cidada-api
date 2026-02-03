@@ -4,7 +4,11 @@ import { StatusCodes } from "http-status-codes";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
-import { publicGetFormByIdParamsSchema } from "../validators/publicGetFormValidator";
+import {
+  publicGetFormByIdParamsSchema,
+  publicGetFormsBySlugParamsSchema,
+  publicGetFormBySlugParamsSchema,
+} from "../validators/publicGetFormValidator";
 import { PublicFormReadService } from "../../services/PublicFormReadService";
 
 @injectable()
@@ -23,6 +27,51 @@ export class PublicFormController {
       const result = await this.publicFormReadService.getPublicFormById({
         projetoSlug,
         formId,
+      });
+
+      return reply.status(StatusCodes.OK).send({
+        message: "Formulário público retornado com sucesso",
+        data: result,
+      });
+    } catch (error: any) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async listBySlug(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const { projetoSlug } = publicGetFormsBySlugParamsSchema.parse(
+        request.params
+      );
+
+      const result = await this.publicFormReadService.listPublicFormsBySlug({
+        projetoSlug,
+      });
+
+      return reply.status(StatusCodes.OK).send({
+        message: "Formulários públicos retornados com sucesso",
+        data: result,
+      });
+    } catch (error: any) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async getByFormSlug(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const { projetoSlug, formSlug } = publicGetFormBySlugParamsSchema.parse(
+        request.params
+      );
+
+      const result = await this.publicFormReadService.getPublicFormBySlug({
+        projetoSlug,
+        formSlug,
       });
 
       return reply.status(StatusCodes.OK).send({

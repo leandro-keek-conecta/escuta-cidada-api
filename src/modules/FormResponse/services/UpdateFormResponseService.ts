@@ -64,15 +64,17 @@ export class UpdateFormResponseService {
 
         if (!formVersion) {
           throw new AppError(
-            "Versao do formulario nao encontrada",
+            "Versão do formulário não encontrada",
             StatusCodes.NOT_FOUND
           );
         }
 
-        const fieldsDefinition = Array.isArray(formVersion.schema)
-          ? (formVersion.schema as any[])
-          : [];
-        const dynamicSchema = createDynamicSchema(fieldsDefinition);
+        const formFields = await this.formFieldRepository.findByFormVersionId(
+          existing.formVersionId
+        );
+        const dynamicSchema = createDynamicSchema(formFields, {
+          ignoreRequired: parsed.status === FormResponseStatus.STARTED,
+        });
         const validationResult = dynamicSchema.safeParse(parsed.fields);
 
         if (!validationResult.success) {
@@ -84,14 +86,11 @@ export class UpdateFormResponseService {
 
         const cleanData = validationResult.data;
 
-        const formFields = await this.formFieldRepository.findByFormVersionId(
-          existing.formVersionId
-        );
         const fieldIdByName = new Map(
           formFields.map((field) => [field.name, field.id])
         );
         const definitionByName = new Map(
-          fieldsDefinition.map((field) => [field.name, field])
+          formFields.map((field) => [field.name, field])
         );
 
         fieldsToCreate = Object.entries(cleanData).map(([key, value]) =>
