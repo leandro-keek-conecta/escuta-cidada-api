@@ -7,7 +7,7 @@ import { UpdateProjetoService } from "@/modules/projeto/services/UpdateProjetoSe
 import { UpdateProjetoUpdateSchema } from "@/modules/projeto/http/validators/updateProjetoValidator";
 import { DeleteProjetoService } from "@/modules/projeto/services/DeleteProjetoService";
 import { ProjetoDoesNotExist } from "@/modules/projeto/errors/ProjetoDoesNotExist";
-import { CreateProjetoService } from "@/modules/projeto/services/createProjetoService";
+import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
 @injectable()
 export class ProjetoController {
   

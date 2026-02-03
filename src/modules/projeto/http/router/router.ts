@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import container from "@/common/container";
 import Types from "@/common/container/types";
-import { ProjetoController } from "../controller/projetoController";
+import { ProjetoController } from "../controller/ProjetoController";
 import AuthMiddleware from "@/common/infra/http/middlewares/AuthenticationHandler";
 
 export async function routerProjeto(app: FastifyInstance) {
