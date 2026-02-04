@@ -15,7 +15,6 @@ export async function routerFormResponse(app: FastifyInstance) {
 
   app.post(
     "/create",
-    { preHandler: [AuthMiddleware.required, AuthMiddleware.isAdmin] },
     controller.create.bind(controller)
   );
 

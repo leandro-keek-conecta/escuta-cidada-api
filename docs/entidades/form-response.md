@@ -27,7 +27,7 @@
 
 ## Rotas
 ### POST /escuta-cidada-api/form-response/create
-- Auth: sim (ADMIN ou SUPERADMIN)
+- Auth: nao
 
 **Exemplo de uso**
 ```
