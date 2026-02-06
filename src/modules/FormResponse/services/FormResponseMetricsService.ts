@@ -558,7 +558,7 @@ export class FormResponseMetricsService {
       whereParts.push(
         Prisma.sql`${Prisma.raw(`${responseAlias}."status"`)} = ${
           params.status
-        }`
+        }::"FormResponseStatus"`
       );
     }
     if (params.start) {
@@ -624,7 +624,9 @@ export class FormResponseMetricsService {
     }
 
     if (params.status) {
-      whereParts.push(Prisma.sql`r."status" = ${params.status}`);
+      whereParts.push(
+        Prisma.sql`r."status" = ${params.status}::"FormResponseStatus"`
+      );
     }
 
     if (params.start) {
@@ -675,7 +677,9 @@ export class FormResponseMetricsService {
     }
 
     if (params.status) {
-      whereParts.push(Prisma.sql`r."status" = ${params.status}`);
+      whereParts.push(
+        Prisma.sql`r."status" = ${params.status}::"FormResponseStatus"`
+      );
     }
 
     if (params.start) {
