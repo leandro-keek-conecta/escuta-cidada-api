@@ -1,7 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { injectable } from "inversify";
-import { IProjetoRepository, ProjetoWithRelations } from "./IProjetoRepository";
+import {
+  IProjetoRepository,
+  ProjetoListWithRelations,
+  ProjetoWithRelations,
+} from "./IProjetoRepository";
 
 const userSafeSelect = {
   id: true,
@@ -40,6 +44,21 @@ const defaultInclude = {
   hiddenScreens: true,
 } as const;
 
+const listInclude = {
+  users: { include: { user: { select: userSafeSelect } } },
+  chats: true,
+  forms: {
+    include: {
+      versions: {
+        include: {
+          fields: true,
+        },
+      },
+    },
+  },
+  hiddenScreens: true,
+} as const;
+
 @injectable()
 export class ProjetoRepository implements IProjetoRepository {
   async create(data: Prisma.ProjetoCreateInput): Promise<ProjetoWithRelations> {
@@ -67,9 +86,9 @@ export class ProjetoRepository implements IProjetoRepository {
     });
   }
 
-  async getProjetos(): Promise<ProjetoWithRelations[]> {
+  async getProjetos(): Promise<ProjetoListWithRelations[]> {
     return await prisma.projeto.findMany({
-      include: defaultInclude,
+      include: listInclude,
     });
   }
 
