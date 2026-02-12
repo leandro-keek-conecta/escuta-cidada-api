@@ -9,6 +9,7 @@ import AuthController from "@/modules/auth/infra/http/controllers/AuthController
 import { ListUserService } from "@/modules/user/services/listUserService";
 import { ProjetoController } from "@/modules/projeto/http/controller/ProjetoController";
 import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
+import { GetProjetoService } from "@/modules/projeto/services/GetProjetoService";
 import { ProjetoRepository } from "@/modules/projeto/repositories/ProjetoRepository";
 import { ListProjetosService } from "@/modules/projeto/services/ListProjetoService";
 import { UpdateProjetoService } from "@/modules/projeto/services/UpdateProjetoService";
@@ -74,6 +75,7 @@ container.bind<ListUserService>(Types.ListUserService).to(ListUserService);
 container.bind(Types.ProjetoController).toConstantValue(new ProjetoController());
 container.bind<ProjetoRepository>(Types.ProjetoRepository).to(ProjetoRepository);
 container.bind<CreateProjetoService>(Types.CreateProjetoService).to(CreateProjetoService);
+container.bind<GetProjetoService>(Types.GetProjetoService).to(GetProjetoService);
 container.bind<ListProjetosService>(Types.ListProjetoService).to(ListProjetosService);
 container.bind<UpdateProjetoService>(Types.UpdateProjetoService).to(UpdateProjetoService);
 container.bind<DeleteProjetoService>(Types.DeleteProjetoService).to(DeleteProjetoService);
