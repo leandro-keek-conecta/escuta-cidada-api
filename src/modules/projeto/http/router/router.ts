@@ -9,6 +9,7 @@ export async function routerProjeto(app: FastifyInstance) {
 
   app.post("/create", {preHandler: AuthMiddleware.required,handler: ProjetoController.create.bind(ProjetoController)});
   app.get("/list", {preHandler: AuthMiddleware.required,handler: ProjetoController.list.bind(ProjetoController)});
+  app.get("/list/:id", {preHandler: AuthMiddleware.required,handler: ProjetoController.listByUserId.bind(ProjetoController)});
   app.get("/:id", {preHandler: AuthMiddleware.required,handler: ProjetoController.getById.bind(ProjetoController)});
   app.patch("/update/:id", {preHandler: AuthMiddleware.required,handler: ProjetoController.update.bind(ProjetoController)});
   app.delete("/delete/:id", {preHandler: AuthMiddleware.required,handler: ProjetoController.delete.bind(ProjetoController)});

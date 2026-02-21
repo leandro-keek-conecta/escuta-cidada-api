@@ -9,6 +9,7 @@ import { DeleteProjetoService } from "@/modules/projeto/services/DeleteProjetoSe
 import { ProjetoDoesNotExist } from "@/modules/projeto/errors/ProjetoDoesNotExist";
 import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
 import { GetProjetoService } from "@/modules/projeto/services/GetProjetoService";
+import { ListProjetosByUseridService } from "@/modules/projeto/services/ListProjetoByUserService";
 @injectable()
 export class ProjetoController {
   
@@ -52,6 +53,37 @@ export class ProjetoController {
       );
       return reply.status(500).send({
         message: "An error occurred while listing the projetos",
+      });
+    }
+  }
+
+  async listByUserId(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    const listProjetosByUserIdService =
+      AppContainer.resolve<ListProjetosByUseridService>(ListProjetosByUseridService);
+    const { id } = request.params as { id?: string };
+    const userId = Number(id);
+
+    if (!id || Number.isNaN(userId)) {
+      return reply.status(400).send({ message: "Invalid user id" });
+    }
+
+    try {
+      const projetos = await listProjetosByUserIdService.execute(userId);
+
+      return reply.status(200).send({
+        message: "Successfully listed projetos by user",
+        data: projetos,
+      });
+    } catch (err: any) {
+      console.error(
+        "Erro no controlador ao listar projetos por usuário:",
+        JSON.stringify(err, null, 2)
+      );
+      return reply.status(500).send({
+        message: "An error occurred while listing projetos by user",
       });
     }
   }

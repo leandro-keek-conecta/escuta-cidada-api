@@ -92,6 +92,19 @@ export class ProjetoRepository implements IProjetoRepository {
     });
   }
 
+  async getProjetosByUserId(userId: number): Promise<ProjetoListWithRelations[]> {
+    return await prisma.projeto.findMany({
+      where: {
+        users: {
+          some: {
+            userId,
+          },
+        },
+      },
+      include: listInclude,
+    });
+  }
+
   async delete(id: number): Promise<void> {
     await prisma.projeto.delete({
       where: { id },

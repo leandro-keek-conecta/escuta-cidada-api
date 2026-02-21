@@ -39,12 +39,12 @@ function toNumber(value: number | string | bigint) {
 }
 
 @injectable()
-export class ListProjetosService {
+export class ListProjetosByUseridService {
   @inject(Types.ProjetoRepository) private ProjetoRepository!: IProjetoRepository;
 
-  public async execute() {
+  public async execute(userId: number) {
     try {
-      const projects = await this.ProjetoRepository.getProjetos();
+      const projects = await this.ProjetoRepository.getProjetosByUserId(userId);
       const now = new Date();
       const monthStart = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1, 0, 0, 0, 0)

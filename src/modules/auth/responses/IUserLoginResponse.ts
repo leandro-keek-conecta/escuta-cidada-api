@@ -2,6 +2,7 @@ import { ProjetoAccessLevel, Role } from "@prisma/client";
 
 type ProjetoResumo = {
   id: number;
+  slug: string;
   nome: string;
   url: string | null;
   corHex: string | null;
@@ -12,6 +13,17 @@ type ProjetoResumo = {
   assignedAt?: Date;
   access: ProjetoAccessLevel;
   hiddenTabs: string[];
+  metrics: {
+    responsesLast7Days: number;
+    responsesByMonthLast12Months: Array<{
+      month: string;
+      total: number;
+    }>;
+    responsesByTheme: Array<{
+      tema: string;
+      total: number;
+    }>;
+  };
 };
 
 interface IUserLoginResponse {

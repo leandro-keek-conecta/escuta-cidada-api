@@ -44,5 +44,6 @@ export interface IProjetoRepository {
   ): Promise<ProjetoWithRelations>;
   findById(id: number): Promise<ProjetoWithRelations | null>;
   getProjetos(): Promise<ProjetoListWithRelations[]>;
+  getProjetosByUserId(userId: number): Promise<ProjetoListWithRelations[]>;
   delete(id: number): Promise<void>;
 }
