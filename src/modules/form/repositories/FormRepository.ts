@@ -3,26 +3,10 @@ import { Prisma } from "@prisma/client";
 import { injectable } from "inversify";
 import { FormWithRelations, IFormsRepository } from "./IFormRepository";
 
-const userSafeSelect = {
-  id: true,
-  email: true,
-  name: true,
-  profession: true,
-  role: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
-
 const defaultInclude = {
   versions: {
     include: {
       fields: true,
-      responses: {
-        include: {
-          fields: true,
-          user: { select: userSafeSelect },
-        },
-      },
     },
   },
 } as const;
