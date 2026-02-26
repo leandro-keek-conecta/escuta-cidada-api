@@ -105,10 +105,15 @@ Authorization: Bearer <token>
   - `start`, `end` (opcionais)
   - `monthStart`, `monthEnd` (opcionais)
   - `dayStart`, `dayEnd` (opcionais)
+  - `temas`, `tipoOpiniao`, `genero`, `bairros`, `faixaEtaria`, `textoOpiniao`, `campanhas` (opcionais)
   - `limitTopThemes`, `limitTopNeighborhoods`, `limitDistribution` (opcionais)
 
 **Campos usados no report**
 - `opiniao`, `bairro`, `genero`, `campanha`, `tipo_opiniao`, `ano_nascimento`.
+
+**Normalizacao analitica**
+- `topTemas` e `tipoOpiniao` sao consolidados por chave normalizada
+  (case/acento/espacos), mantendo dados brutos intactos no banco.
 
 **Exemplo de uso**
 ```

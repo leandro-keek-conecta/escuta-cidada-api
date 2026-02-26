@@ -157,6 +157,7 @@ function normalizeText(value: unknown) {
   return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 }
@@ -178,6 +179,67 @@ const AGE_BUCKETS = [
 ];
 
 const MAX_AGE = 120;
+
+const THEME_CANONICAL_BY_KEY: Record<string, string> = {
+  saude: "Saúde",
+  educacao: "Educação",
+  seguranca: "Segurança",
+  infraestrutura: "Infraestrutura",
+  mobilidade: "Mobilidade",
+  "meio ambiente": "Meio ambiente",
+  outro: "Outro",
+};
+
+const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
+  reclamacao: "Reclamação",
+  elogio: "Elogio",
+  sugestao: "Sugestão",
+};
+
+function canonicalizeThemeLabel(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "Não informado";
+  }
+  const normalized = normalizeText(raw);
+  return THEME_CANONICAL_BY_KEY[normalized] ?? raw;
+}
+
+function canonicalizeOpinionTypeLabel(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "Não informado";
+  }
+  const normalized = normalizeText(raw);
+  return OPINION_TYPE_CANONICAL_BY_KEY[normalized] ?? raw;
+}
+
+function aggregateDistributionRows(
+  rows: DistributionRow[],
+  canonicalizer?: (value: unknown) => string
+) {
+  const grouped = new Map<string, { value: string; count: number }>();
+
+  for (const row of rows) {
+    const count = normalizeCount(row.count);
+    const label = canonicalizer
+      ? canonicalizer(row.value)
+      : normalizeLabel(row.value);
+    const key = normalizeText(label);
+
+    const current = grouped.get(key);
+    if (current) {
+      current.count += count;
+      continue;
+    }
+
+    grouped.set(key, { value: label, count });
+  }
+
+  return Array.from(grouped.values())
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+    .map((item) => ({ value: item.value, count: item.count }));
+}
 
 @injectable()
 export class FormResponseMetricsService {
@@ -1530,13 +1592,18 @@ export class FormResponseMetricsService {
       end: dayEnd ?? params.end,
     };
 
+    const topThemesCollectionLimit = Math.min(
+      200,
+      Math.max(params.limitTopThemes * 5, params.limitTopThemes)
+    );
+
     const [
       statusFunnel,
-      topTemas,
+      topTemasRaw,
       topBairros,
       genero,
       campanha,
-      tipos,
+      tiposRaw,
       anosNascimento,
       mes,
       dia,
@@ -1546,7 +1613,7 @@ export class FormResponseMetricsService {
         ...baseFilters,
         fieldName: "opiniao",
         valueType: "string",
-        limit: params.limitTopThemes,
+        limit: topThemesCollectionLimit,
       }),
       this.distribution({
         ...baseFilters,
@@ -1589,6 +1656,15 @@ export class FormResponseMetricsService {
         dateField: params.dateField,
       }),
     ]);
+
+    const topTemas = aggregateDistributionRows(
+      topTemasRaw,
+      canonicalizeThemeLabel
+    ).slice(0, params.limitTopThemes);
+    const tipos = aggregateDistributionRows(
+      tiposRaw,
+      canonicalizeOpinionTypeLabel
+    );
 
     const cards = tipos.reduce(
       (acc, row) => {
@@ -1737,7 +1813,7 @@ export class FormResponseMetricsService {
         : [fieldWhere.AND]
       : [];
 
-    const [totalOpinionsToday, topTemas, topBairros] = await Promise.all([
+    const [totalOpinionsToday, topTemasRaw, topBairros] = await Promise.all([
       this.client.formResponse.count({
         where: {
           ...(baseFilters.projetoId
@@ -1768,6 +1844,11 @@ export class FormResponseMetricsService {
         limit: params.limitTopNeighborhoods,
       }),
     ]);
+
+    const topTemas = aggregateDistributionRows(
+      topTemasRaw,
+      canonicalizeThemeLabel
+    ).slice(0, params.limitTopThemes);
 
     return {
       day: {
@@ -1803,8 +1884,8 @@ export class FormResponseMetricsService {
     };
 
     const [
-      tipoOpiniao,
-      temas,
+      tipoOpiniaoRaw,
+      temasRaw,
       genero,
       bairros,
       campanhas,
@@ -1847,6 +1928,12 @@ export class FormResponseMetricsService {
         limit: 200,
       }),
     ]);
+
+    const tipoOpiniao = aggregateDistributionRows(
+      tipoOpiniaoRaw,
+      canonicalizeOpinionTypeLabel
+    );
+    const temas = aggregateDistributionRows(temasRaw, canonicalizeThemeLabel);
 
     const referenceDate = this.getReferenceDate(params);
     const referenceYear = referenceDate.getFullYear();
