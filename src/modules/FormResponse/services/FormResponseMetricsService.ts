@@ -44,6 +44,8 @@ type NormalizedFieldFilters = {
 type BaseFilters = {
   projetoId?: number;
   formVersionId?: number;
+  formId?: number;
+  formIds?: number[];
   status?: FormResponseStatus;
   start?: Date;
   end?: Date;
@@ -78,6 +80,20 @@ type ReportParams = BaseFilters & {
   limitDistribution: number;
 };
 
+type ProjectReportParams = BaseFilters & {
+  dateField: MetricsDateField;
+  monthStart?: Date;
+  monthEnd?: Date;
+  dayStart?: Date;
+  dayEnd?: Date;
+  limitTopForms: number;
+};
+
+type FormFiltersParams = BaseFilters & {
+  dateField: MetricsDateField;
+  limitValuesPerField: number;
+};
+
 type SummaryParams = BaseFilters & {
   day?: Date;
   rangeStart?: Date;
@@ -98,6 +114,15 @@ type NumberStatsRow = {
   max: number | string | null;
   avg: number | string | null;
 };
+type StatusCountRow = { status: FormResponseStatus | string; count: number | string };
+type TotalRow = { total: number | string };
+type OpinionTypeRow = { tipoOpiniao: string | null; total: number | string };
+type FormResponseByFormRow = {
+  formId: number;
+  formName: string | null;
+  total: number | string;
+};
+type FieldValuesRow = { value: string | null; total: number | string };
 
 function getDateColumn(field: MetricsDateField, alias?: string) {
   const prefix = alias ? `${alias}.` : "";
@@ -183,6 +208,41 @@ export class FormResponseMetricsService {
     }
 
     return merged.length ? merged : undefined;
+  }
+
+  private mergeFormIds(formId?: number, formIds?: number[]) {
+    const merged: number[] = [];
+    const seen = new Set<number>();
+
+    if (typeof formId === "number" && Number.isFinite(formId) && formId > 0) {
+      seen.add(formId);
+      merged.push(formId);
+    }
+
+    for (const id of formIds ?? []) {
+      if (!Number.isFinite(id) || id <= 0 || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      merged.push(id);
+    }
+
+    return merged.length ? merged : undefined;
+  }
+
+  private buildFormScopeSql(responseAlias: string, formIds?: number[]) {
+    if (!formIds?.length) {
+      return null;
+    }
+
+    const responseFormVersionId = Prisma.raw(`${responseAlias}."formVersionId"`);
+
+    return Prisma.sql`EXISTS (
+      SELECT 1
+      FROM "FormVersion" fv_filter
+      WHERE fv_filter."id" = ${responseFormVersionId}
+        AND fv_filter."formId" IN (${Prisma.join(formIds)})
+    )`;
   }
 
   private normalizeFieldFilters(params: FieldFilterInput): NormalizedFieldFilters {
@@ -537,6 +597,7 @@ export class FormResponseMetricsService {
     const responseAlias = "r";
     const dateColumn = getDateColumn(params.dateField, responseAlias);
     const fieldFilters = this.normalizeFieldFilters(params);
+    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
     const referenceDate = this.getReferenceDate(params);
 
     const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
@@ -553,6 +614,10 @@ export class FormResponseMetricsService {
           params.formVersionId
         }`
       );
+    }
+    const formScopeSql = this.buildFormScopeSql(responseAlias, mergedFormIds);
+    if (formScopeSql) {
+      whereParts.push(formScopeSql);
     }
     if (params.status) {
       whereParts.push(
@@ -604,6 +669,7 @@ export class FormResponseMetricsService {
     })();
 
     const fieldFilters = this.normalizeFieldFilters(params);
+    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
     const referenceDate = this.getReferenceDate(params);
     const whereParts: Prisma.Sql[] = [Prisma.sql`${valueColumn} IS NOT NULL`];
 
@@ -621,6 +687,10 @@ export class FormResponseMetricsService {
 
     if (params.formVersionId) {
       whereParts.push(Prisma.sql`r."formVersionId" = ${params.formVersionId}`);
+    }
+    const formScopeSql = this.buildFormScopeSql("r", mergedFormIds);
+    if (formScopeSql) {
+      whereParts.push(formScopeSql);
     }
 
     if (params.status) {
@@ -666,6 +736,7 @@ export class FormResponseMetricsService {
     ];
 
     const fieldFilters = this.normalizeFieldFilters(params);
+    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
     const referenceDate = this.getReferenceDate(params);
 
     if (params.projetoId) {
@@ -674,6 +745,10 @@ export class FormResponseMetricsService {
 
     if (params.formVersionId) {
       whereParts.push(Prisma.sql`r."formVersionId" = ${params.formVersionId}`);
+    }
+    const formScopeSql = this.buildFormScopeSql("r", mergedFormIds);
+    if (formScopeSql) {
+      whereParts.push(formScopeSql);
     }
 
     if (params.status) {
@@ -724,6 +799,7 @@ export class FormResponseMetricsService {
   async statusFunnel(params: FunnelParams) {
     const where: Prisma.FormResponseWhereInput = {};
     const fieldFilters = this.normalizeFieldFilters(params);
+    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
     const referenceDate = this.getReferenceDate(params);
 
     if (params.projetoId) {
@@ -732,6 +808,25 @@ export class FormResponseMetricsService {
 
     if (params.formVersionId) {
       where.formVersionId = params.formVersionId;
+    }
+
+    if (mergedFormIds?.length) {
+      const versions = await this.client.formVersion.findMany({
+        where: { formId: { in: mergedFormIds } },
+        select: { id: true },
+      });
+      const versionIds = versions.map((item) => item.id);
+      if (!versionIds.length) {
+        return [];
+      }
+
+      if (params.formVersionId) {
+        if (!versionIds.includes(params.formVersionId)) {
+          return [];
+        }
+      } else {
+        where.formVersionId = { in: versionIds };
+      }
     }
 
     if (params.start || params.end) {
@@ -772,6 +867,533 @@ export class FormResponseMetricsService {
       status: row.status,
       count: row._count._all,
     }));
+  }
+
+  async projectReport(params: ProjectReportParams) {
+    debugLog("projectReport params", params);
+    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
+
+    const toStartOfDay = (value: Date) => {
+      const date = new Date(value);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
+    const toEndOfDay = (value: Date) => {
+      const date = new Date(value);
+      date.setHours(23, 59, 59, 999);
+      return date;
+    };
+
+    const addDays = (value: Date, days: number) => {
+      const date = new Date(value);
+      date.setDate(date.getDate() + days);
+      return date;
+    };
+
+    const toDateKey = (value: Date) => value.toISOString().slice(0, 10);
+
+    const hasDateFilters = Boolean(
+      params.start ||
+        params.end ||
+        params.dayStart ||
+        params.dayEnd ||
+        params.monthStart ||
+        params.monthEnd
+    );
+    const hasAnyFilters = hasDateFilters || !!params.status;
+
+    const baseFilters: BaseFilters = {
+      projetoId: params.projetoId,
+      formVersionId: params.formVersionId,
+      formIds: mergedFormIds,
+      status: params.status,
+      start: params.start,
+      end: params.end,
+    };
+
+    const monthFilters: BaseFilters = {
+      ...baseFilters,
+      start: params.monthStart ?? params.start,
+      end: params.monthEnd ?? params.end,
+    };
+
+    const dayStartParam = params.dayStart
+      ? toStartOfDay(params.dayStart)
+      : undefined;
+    const dayEndParam = params.dayEnd ? toEndOfDay(params.dayEnd) : undefined;
+    const dayStartFromMonth = params.monthStart
+      ? toStartOfDay(params.monthStart)
+      : undefined;
+    const dayEndFromMonth = params.monthEnd
+      ? toEndOfDay(params.monthEnd)
+      : undefined;
+
+    let dayStart =
+      dayStartParam ?? dayStartFromMonth ?? (hasAnyFilters ? undefined : null);
+    let dayEnd =
+      dayEndParam ?? dayEndFromMonth ?? (hasAnyFilters ? undefined : null);
+
+    if (!hasAnyFilters && (dayStart === null || dayEnd === null)) {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      monthEnd.setHours(23, 59, 59, 999);
+      dayStart = monthStart;
+      dayEnd = monthEnd;
+    }
+
+    if (dayStart === null) {
+      dayStart = undefined;
+    }
+    if (dayEnd === null) {
+      dayEnd = undefined;
+    }
+
+    const todayEnd = toEndOfDay(new Date());
+    if (dayEnd && dayEnd > todayEnd) {
+      dayEnd = todayEnd;
+    }
+
+    const dayFilters: BaseFilters = {
+      ...baseFilters,
+      start: dayStart ?? params.start,
+      end: dayEnd ?? params.end,
+    };
+
+    const buildReportWhereSql = (
+      responseAlias: string,
+      filters: Pick<
+        BaseFilters,
+        "projetoId" | "formVersionId" | "formIds" | "status" | "start" | "end"
+      >
+    ) => {
+      const dateColumn = getDateColumn(params.dateField, responseAlias);
+      const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
+
+      if (filters.projetoId) {
+        whereParts.push(
+          Prisma.sql`${Prisma.raw(`${responseAlias}."projetoId"`)} = ${
+            filters.projetoId
+          }`
+        );
+      }
+
+      if (filters.formVersionId) {
+        whereParts.push(
+          Prisma.sql`${Prisma.raw(`${responseAlias}."formVersionId"`)} = ${
+            filters.formVersionId
+          }`
+        );
+      }
+
+      const formScopeSql = this.buildFormScopeSql(responseAlias, filters.formIds);
+      if (formScopeSql) {
+        whereParts.push(formScopeSql);
+      }
+
+      if (filters.status) {
+        whereParts.push(
+          Prisma.sql`${Prisma.raw(`${responseAlias}."status"`)} = ${
+            filters.status
+          }::"FormResponseStatus"`
+        );
+      }
+
+      if (filters.start) {
+        whereParts.push(Prisma.sql`${dateColumn} >= ${filters.start}`);
+      }
+
+      if (filters.end) {
+        whereParts.push(Prisma.sql`${dateColumn} <= ${filters.end}`);
+      }
+
+      return Prisma.join(whereParts, " AND ");
+    };
+
+    const baseWhereSql = buildReportWhereSql("r", baseFilters);
+
+    const [statusRows, mes, dia, formRows, opinionFormRows, opinionTypeRows] = await Promise.all([
+      this.client.$queryRaw<StatusCountRow[]>(Prisma.sql`
+        SELECT r."status" AS "status", COUNT(*)::int AS "count"
+        FROM "FormResponse" r
+        WHERE ${baseWhereSql}
+        GROUP BY r."status"
+      `),
+      this.timeSeries({
+        ...monthFilters,
+        interval: "month",
+        dateField: params.dateField,
+      }),
+      this.timeSeries({
+        ...dayFilters,
+        interval: "day",
+        dateField: params.dateField,
+      }),
+      this.client.$queryRaw<FormResponseByFormRow[]>(Prisma.sql`
+        SELECT
+          fv."formId" AS "formId",
+          f."name" AS "formName",
+          COUNT(*)::int AS "total"
+        FROM "FormResponse" r
+        INNER JOIN "FormVersion" fv ON fv."id" = r."formVersionId"
+        INNER JOIN "Form" f ON f."id" = fv."formId"
+        WHERE ${baseWhereSql}
+        GROUP BY fv."formId", f."name"
+        ORDER BY "total" DESC, "formName" ASC
+        LIMIT ${params.limitTopForms}
+      `),
+      this.client.$queryRaw<TotalRow[]>(Prisma.sql`
+        SELECT COUNT(*)::int AS "total"
+        FROM "FormResponse" r
+        WHERE ${baseWhereSql}
+          AND EXISTS (
+            SELECT 1
+            FROM "FormResponseField" ff
+            WHERE ff."responseId" = r."id"
+              AND ff."fieldName" IN ('opiniao', 'tipo_opiniao')
+          )
+      `),
+      this.client.$queryRaw<OpinionTypeRow[]>(Prisma.sql`
+        SELECT
+          COALESCE(NULLIF(BTRIM(ff."value"), ''), 'Nao informado') AS "tipoOpiniao",
+          COUNT(DISTINCT r."id")::int AS "total"
+        FROM "FormResponse" r
+        INNER JOIN "FormResponseField" ff
+          ON ff."responseId" = r."id"
+         AND ff."fieldName" = 'tipo_opiniao'
+        WHERE ${baseWhereSql}
+        GROUP BY COALESCE(NULLIF(BTRIM(ff."value"), ''), 'Nao informado')
+      `),
+    ]);
+
+    const statusFunnel = statusRows.map((row) => ({
+      status: String(row.status) as FormResponseStatus,
+      count: normalizeCount(row.count),
+    }));
+
+    const statusTotals = statusFunnel.reduce(
+      (acc, row) => {
+        acc.totalResponses += row.count;
+        if (row.status === FormResponseStatus.COMPLETED) {
+          acc.totalCompleted += row.count;
+        } else if (row.status === FormResponseStatus.STARTED) {
+          acc.totalStarted += row.count;
+        } else if (row.status === FormResponseStatus.ABANDONED) {
+          acc.totalAbandoned += row.count;
+        }
+        return acc;
+      },
+      {
+        totalResponses: 0,
+        totalCompleted: 0,
+        totalStarted: 0,
+        totalAbandoned: 0,
+      }
+    );
+
+    const completionRate =
+      statusTotals.totalResponses > 0
+        ? Number(
+            (
+              (statusTotals.totalCompleted / statusTotals.totalResponses) *
+              100
+            ).toFixed(2)
+          )
+        : 0;
+
+    const totalOpinionFormResponses = normalizeCount(
+      opinionFormRows[0]?.total ?? 0
+    );
+
+    let totalComplaints = 0;
+    let totalPraise = 0;
+    let totalSuggestions = 0;
+
+    for (const row of opinionTypeRows) {
+      const key = normalizeText(row.tipoOpiniao);
+      const count = normalizeCount(row.total);
+      if (key === "reclamacao") {
+        totalComplaints += count;
+      } else if (key === "elogio") {
+        totalPraise += count;
+      } else if (key === "sugestao") {
+        totalSuggestions += count;
+      }
+    }
+
+    const daySeries = dia.map((row) => ({
+      label: formatBucketLabel(row.bucket, "day"),
+      value: normalizeCount(row.count),
+    }));
+
+    if (dayStart && dayEnd) {
+      const dayMap = new Map(daySeries.map((item) => [item.label, item.value]));
+      const filled: { label: string; value: number }[] = [];
+      let cursor = toStartOfDay(dayStart);
+      const end = toEndOfDay(dayEnd);
+
+      while (cursor <= end) {
+        const key = toDateKey(cursor);
+        filled.push({ label: key, value: dayMap.get(key) ?? 0 });
+        cursor = addDays(cursor, 1);
+      }
+      daySeries.splice(0, daySeries.length, ...filled);
+    }
+
+    return {
+      cards: {
+        totalOpinions: totalOpinionFormResponses,
+        totalComplaints,
+        totalPraise,
+        totalSuggestions,
+        ...statusTotals,
+        totalOpinionFormResponses,
+        completionRate,
+      },
+      lineByMonth: mes.map((row) => ({
+        label: formatBucketLabel(row.bucket, "month"),
+        value: normalizeCount(row.count),
+      })),
+      lineByDay: daySeries,
+      responsesByForm: formRows.map((row) => ({
+        formId: row.formId,
+        label: normalizeLabel(row.formName ?? `Formulario ${row.formId}`),
+        value: normalizeCount(row.total),
+      })),
+      statusFunnel,
+    };
+  }
+
+  async formFilters(params: FormFiltersParams) {
+    debugLog("formFilters params", params);
+
+    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
+
+    const forms = await this.client.form.findMany({
+      where: {
+        ...(params.projetoId
+          ? {
+              OR: [
+                { projetoId: params.projetoId },
+                {
+                  versions: {
+                    some: {
+                      responses: {
+                        some: { projetoId: params.projetoId },
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+        ...(mergedFormIds?.length ? { id: { in: mergedFormIds } } : {}),
+        ...(params.formVersionId
+          ? { versions: { some: { id: params.formVersionId } } }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        versions: {
+          orderBy: { version: "desc" },
+          select: {
+            id: true,
+            version: true,
+            isActive: true,
+            schema: true,
+            fields: {
+              orderBy: { ordem: "asc" },
+              select: {
+                id: true,
+                name: true,
+                label: true,
+                type: true,
+                required: true,
+                options: true,
+                ordem: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const formsWithVersion = forms
+      .map((form) => {
+        const version =
+          (params.formVersionId
+            ? form.versions.find((item) => item.id === params.formVersionId)
+            : undefined) ??
+          form.versions.find((item) => item.isActive) ??
+          form.versions[0];
+
+        if (!version) {
+          return null;
+        }
+
+        return {
+          formId: form.id,
+          formName: form.name,
+          formDescription: form.description ?? null,
+          formVersionId: version.id,
+          formVersion: version.version,
+          schema: version.schema as Prisma.JsonValue,
+          fields: version.fields,
+        };
+      })
+      .filter(
+        (
+          item
+        ): item is NonNullable<typeof item> => item !== null
+      );
+
+    const buildWhereSql = (responseAlias: string) => {
+      const dateColumn = getDateColumn(params.dateField, responseAlias);
+      const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
+
+      if (params.projetoId) {
+        whereParts.push(
+          Prisma.sql`${Prisma.raw(`${responseAlias}."projetoId"`)} = ${
+            params.projetoId
+          }`
+        );
+      }
+
+      if (params.formVersionId) {
+        whereParts.push(
+          Prisma.sql`${Prisma.raw(`${responseAlias}."formVersionId"`)} = ${
+            params.formVersionId
+          }`
+        );
+      }
+
+      const formScopeSql = this.buildFormScopeSql(responseAlias, mergedFormIds);
+      if (formScopeSql) {
+        whereParts.push(formScopeSql);
+      }
+
+      if (params.status) {
+        whereParts.push(
+          Prisma.sql`${Prisma.raw(`${responseAlias}."status"`)} = ${
+            params.status
+          }::"FormResponseStatus"`
+        );
+      }
+
+      if (params.start) {
+        whereParts.push(Prisma.sql`${dateColumn} >= ${params.start}`);
+      }
+
+      if (params.end) {
+        whereParts.push(Prisma.sql`${dateColumn} <= ${params.end}`);
+      }
+
+      return Prisma.join(whereParts, " AND ");
+    };
+
+    const responseWhereSql = buildWhereSql("r");
+
+    const dateRangeRows = await this.client.$queryRaw<
+      Array<{ minDate: Date | null; maxDate: Date | null }>
+    >(Prisma.sql`
+      SELECT
+        MIN(${getDateColumn(params.dateField, "r")}) AS "minDate",
+        MAX(${getDateColumn(params.dateField, "r")}) AS "maxDate"
+      FROM "FormResponse" r
+      WHERE ${responseWhereSql}
+    `);
+
+    const dateRange = dateRangeRows[0] ?? { minDate: null, maxDate: null };
+
+    const formsData = await Promise.all(
+      formsWithVersion.map(async (form) => {
+        const fields = await Promise.all(
+          form.fields.map(async (field) => {
+            const valueRows = await this.client.$queryRaw<FieldValuesRow[]>(
+              Prisma.sql`
+                SELECT
+                  COALESCE(
+                    NULLIF(BTRIM(ff."value"), ''),
+                    ff."valueNumber"::text,
+                    ff."valueBool"::text,
+                    CASE
+                      WHEN ff."valueDate" IS NOT NULL
+                        THEN to_char(
+                          ff."valueDate" AT TIME ZONE 'UTC',
+                          'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+                        )
+                      ELSE NULL
+                    END,
+                    'Nao informado'
+                  ) AS "value",
+                  COUNT(DISTINCT r."id")::int AS "total"
+                FROM "FormResponseField" ff
+                INNER JOIN "FormResponse" r ON r."id" = ff."responseId"
+                INNER JOIN "FormVersion" fv ON fv."id" = r."formVersionId"
+                WHERE ff."fieldName" = ${field.name}
+                  AND fv."formId" = ${form.formId}
+                  AND ${responseWhereSql}
+                GROUP BY 1
+                ORDER BY "total" DESC, "value" ASC
+                LIMIT ${params.limitValuesPerField}
+              `
+            );
+
+            const normalizedType = normalizeText(field.type);
+            const hasSelectableItems =
+              typeof field.options === "object" &&
+              field.options !== null &&
+              "items" in field.options &&
+              Array.isArray((field.options as { items?: unknown }).items);
+            const suggestedFilter =
+              normalizedType.includes("date")
+                ? "date-range"
+                : normalizedType.includes("number")
+                ? "number-range"
+                : hasSelectableItems
+                ? "multi-select"
+                : "contains";
+
+            return {
+              fieldId: field.id,
+              name: field.name,
+              label: field.label,
+              type: field.type,
+              required: field.required,
+              ordem: field.ordem,
+              optionsConfig: field.options,
+              suggestedFilter,
+              values: valueRows.map((row) => ({
+                value: normalizeLabel(row.value),
+                count: normalizeCount(row.total),
+              })),
+            };
+          })
+        );
+
+        return {
+          formId: form.formId,
+          formName: form.formName,
+          formDescription: form.formDescription,
+          formVersionId: form.formVersionId,
+          formVersion: form.formVersion,
+          schema: form.schema,
+          fields,
+        };
+      })
+    );
+
+    return {
+      dateField: params.dateField,
+      dateRange: {
+        min: dateRange.minDate ? dateRange.minDate.toISOString() : null,
+        max: dateRange.maxDate ? dateRange.maxDate.toISOString() : null,
+      },
+      forms: formsData,
+    };
   }
 
   async report(params: ReportParams) {

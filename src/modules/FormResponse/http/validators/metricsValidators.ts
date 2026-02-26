@@ -1,6 +1,29 @@
 import { FormResponseStatus } from "@prisma/client";
 import * as Z from "zod";
 
+const formIdsQuerySchema = Z.preprocess(
+  (value) => {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parts = value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return parts.length ? parts : undefined;
+    }
+
+    return [value];
+  },
+  Z.array(Z.coerce.number().int().positive()).min(1).max(200).optional()
+);
+
 const baseFiltersSchema = Z.object({
   projetoId: Z.coerce.number().int().positive().optional(),
   formVersionId: Z.coerce.number().int().positive().optional(),
@@ -37,6 +60,41 @@ export const metricsReportSchema = baseFiltersSchema
       .max(200)
       .default(10),
     limitDistribution: Z.coerce.number().int().positive().max(200).default(50),
+  })
+  .refine((data) => data.projetoId || data.formVersionId, {
+    message: "projetoId ou formVersionId obrigatorio",
+  });
+
+export const metricsProjectReportSchema = baseFiltersSchema
+  .extend({
+    formId: Z.coerce.number().int().positive().optional(),
+    formIds: formIdsQuerySchema,
+    dateField: Z
+      .enum(["createdAt", "submittedAt", "completedAt", "startedAt"])
+      .default("createdAt"),
+    monthStart: Z.coerce.date().optional(),
+    monthEnd: Z.coerce.date().optional(),
+    dayStart: Z.coerce.date().optional(),
+    dayEnd: Z.coerce.date().optional(),
+    limitTopForms: Z.coerce.number().int().positive().max(200).default(10),
+  })
+  .refine((data) => data.projetoId || data.formVersionId, {
+    message: "projetoId ou formVersionId obrigatorio",
+  });
+
+export const metricsFormFiltersSchema = baseFiltersSchema
+  .extend({
+    formId: Z.coerce.number().int().positive().optional(),
+    formIds: formIdsQuerySchema,
+    dateField: Z
+      .enum(["createdAt", "submittedAt", "completedAt", "startedAt"])
+      .default("createdAt"),
+    limitValuesPerField: Z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(200)
+      .default(30),
   })
   .refine((data) => data.projetoId || data.formVersionId, {
     message: "projetoId ou formVersionId obrigatorio",
@@ -101,6 +159,10 @@ export const metricsStatusFunnelSchema = baseFiltersSchema.refine(
 
 export type MetricsTimeSeriesInput = Z.infer<typeof metricsTimeSeriesSchema>;
 export type MetricsReportInput = Z.infer<typeof metricsReportSchema>;
+export type MetricsProjectReportInput = Z.infer<
+  typeof metricsProjectReportSchema
+>;
+export type MetricsFormFiltersInput = Z.infer<typeof metricsFormFiltersSchema>;
 export type MetricsSummaryInput = Z.infer<typeof metricsSummarySchema>;
 export type MetricsFiltersInput = Z.infer<typeof metricsFiltersSchema>;
 export type MetricsDistributionInput = Z.infer<typeof metricsDistributionSchema>;
