@@ -370,8 +370,17 @@ export class FormResponseMetricsService {
     const conditions: Prisma.Sql[] = [];
 
     if (knownValues.length) {
+      const normalizedValues = Array.from(
+        new Set(
+          knownValues
+            .map((value) => value.trim().toLowerCase())
+            .filter((value) => value.length > 0)
+        )
+      );
       conditions.push(
-        Prisma.sql`${column} IN (${Prisma.join(knownValues)})`
+        Prisma.sql`LOWER(BTRIM(COALESCE(${column}, ''))) IN (${Prisma.join(
+          normalizedValues
+        )})`
       );
     }
 
@@ -593,7 +602,9 @@ export class FormResponseMetricsService {
 
       const or: Prisma.FormResponseFieldWhereInput[] = [];
       if (knownValues.length) {
-        or.push({ value: { in: knownValues } });
+        for (const value of knownValues) {
+          or.push({ value: { equals: value, mode: "insensitive" as const } });
+        }
       }
       if (includeUnknown) {
         or.push({ value: null }, { value: "" });

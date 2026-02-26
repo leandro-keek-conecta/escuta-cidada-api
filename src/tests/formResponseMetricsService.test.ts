@@ -265,3 +265,26 @@ test("report unifica temas e tipos de opiniao por normalizacao", async () => {
     totalSuggestions: 0,
   });
 });
+
+test("buildFieldFilterWhere aplica equals insensitive em filtros de valor", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const where = (service as any).buildFieldFilterWhere(
+    { bairros: ["mangabeira"] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  assert.deepEqual(where, {
+    AND: [
+      {
+        fields: {
+          some: {
+            fieldName: "bairro",
+            OR: [{ value: { equals: "mangabeira", mode: "insensitive" } }],
+          },
+        },
+      },
+    ],
+  });
+});
