@@ -24,9 +24,51 @@ const formIdsQuerySchema = Z.preprocess(
   Z.array(Z.coerce.number().int().positive()).min(1).max(200).optional()
 );
 
+const stringArrayQuerySchema = Z.preprocess(
+  (value) => {
+    if (value === undefined || value === null || value === "") {
+      return undefined;
+    }
+
+    if (Array.isArray(value)) {
+      const items = value
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean);
+      return items.length ? items : undefined;
+    }
+
+    if (typeof value === "string") {
+      const items = value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return items.length ? items : undefined;
+    }
+
+    const item = String(value).trim();
+    return item ? [item] : undefined;
+  },
+  Z.array(Z.string().trim().min(1)).min(1).max(200).optional()
+);
+
 const baseFiltersSchema = Z.object({
   projetoId: Z.coerce.number().int().positive().optional(),
   formVersionId: Z.coerce.number().int().positive().optional(),
+  temas: stringArrayQuerySchema,
+  tema: stringArrayQuerySchema,
+  tipoOpiniao: stringArrayQuerySchema,
+  tipos: stringArrayQuerySchema,
+  tipo: stringArrayQuerySchema,
+  genero: stringArrayQuerySchema,
+  generos: stringArrayQuerySchema,
+  bairro: stringArrayQuerySchema,
+  bairros: stringArrayQuerySchema,
+  faixaEtaria: stringArrayQuerySchema,
+  faixasEtarias: stringArrayQuerySchema,
+  textoOpiniao: stringArrayQuerySchema,
+  texto: stringArrayQuerySchema,
+  campanhas: stringArrayQuerySchema,
+  campanha: stringArrayQuerySchema,
   status: Z.nativeEnum(FormResponseStatus).optional(),
   start: Z.coerce.date().optional(),
   end: Z.coerce.date().optional(),

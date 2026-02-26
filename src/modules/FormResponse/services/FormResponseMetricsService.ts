@@ -245,6 +245,22 @@ export class FormResponseMetricsService {
     )`;
   }
 
+  private buildProjectFormScopeSql(responseAlias: string, projetoId?: number) {
+    if (!projetoId) {
+      return null;
+    }
+
+    const responseFormVersionId = Prisma.raw(`${responseAlias}."formVersionId"`);
+
+    return Prisma.sql`EXISTS (
+      SELECT 1
+      FROM "FormVersion" fv_project
+      INNER JOIN "Form" f_project ON f_project."id" = fv_project."formId"
+      WHERE fv_project."id" = ${responseFormVersionId}
+        AND f_project."projetoId" = ${projetoId}
+    )`;
+  }
+
   private normalizeFieldFilters(params: FieldFilterInput): NormalizedFieldFilters {
     return {
       temas: this.mergeFilterValues(params.temas, params.tema),
@@ -608,6 +624,13 @@ export class FormResponseMetricsService {
         }`
       );
     }
+    const projectFormScopeSql = this.buildProjectFormScopeSql(
+      responseAlias,
+      params.projetoId
+    );
+    if (projectFormScopeSql) {
+      whereParts.push(projectFormScopeSql);
+    }
     if (params.formVersionId) {
       whereParts.push(
         Prisma.sql`${Prisma.raw(`${responseAlias}."formVersionId"`)} = ${
@@ -684,6 +707,10 @@ export class FormResponseMetricsService {
     if (params.projetoId) {
       whereParts.push(Prisma.sql`r."projetoId" = ${params.projetoId}`);
     }
+    const projectFormScopeSql = this.buildProjectFormScopeSql("r", params.projetoId);
+    if (projectFormScopeSql) {
+      whereParts.push(projectFormScopeSql);
+    }
 
     if (params.formVersionId) {
       whereParts.push(Prisma.sql`r."formVersionId" = ${params.formVersionId}`);
@@ -741,6 +768,10 @@ export class FormResponseMetricsService {
 
     if (params.projetoId) {
       whereParts.push(Prisma.sql`r."projetoId" = ${params.projetoId}`);
+    }
+    const projectFormScopeSql = this.buildProjectFormScopeSql("r", params.projetoId);
+    if (projectFormScopeSql) {
+      whereParts.push(projectFormScopeSql);
     }
 
     if (params.formVersionId) {
@@ -804,6 +835,15 @@ export class FormResponseMetricsService {
 
     if (params.projetoId) {
       where.projetoId = params.projetoId;
+      const baseAnd = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+      where.AND = [
+        ...baseAnd,
+        { formVersion: { form: { projetoId: params.projetoId } } },
+      ];
     }
 
     if (params.formVersionId) {
@@ -977,6 +1017,13 @@ export class FormResponseMetricsService {
             filters.projetoId
           }`
         );
+      }
+      const projectFormScopeSql = this.buildProjectFormScopeSql(
+        responseAlias,
+        filters.projetoId
+      );
+      if (projectFormScopeSql) {
+        whereParts.push(projectFormScopeSql);
       }
 
       if (filters.formVersionId) {
@@ -1172,22 +1219,7 @@ export class FormResponseMetricsService {
 
     const forms = await this.client.form.findMany({
       where: {
-        ...(params.projetoId
-          ? {
-              OR: [
-                { projetoId: params.projetoId },
-                {
-                  versions: {
-                    some: {
-                      responses: {
-                        some: { projetoId: params.projetoId },
-                      },
-                    },
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...(params.projetoId ? { projetoId: params.projetoId } : {}),
         ...(mergedFormIds?.length ? { id: { in: mergedFormIds } } : {}),
         ...(params.formVersionId
           ? { versions: { some: { id: params.formVersionId } } }
@@ -1260,6 +1292,13 @@ export class FormResponseMetricsService {
             params.projetoId
           }`
         );
+      }
+      const projectFormScopeSql = this.buildProjectFormScopeSql(
+        responseAlias,
+        params.projetoId
+      );
+      if (projectFormScopeSql) {
+        whereParts.push(projectFormScopeSql);
       }
 
       if (params.formVersionId) {
