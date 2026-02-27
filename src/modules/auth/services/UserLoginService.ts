@@ -34,6 +34,100 @@ type ThemeResponseRow = {
   total: number;
 };
 
+function normalizeThemeOption(value: unknown) {
+  const normalized = String(value ?? "").trim().replace(/\s+/g, " ");
+  return normalized.length ? normalized : null;
+}
+
+function toThemeKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isUnknownTheme(value: string) {
+  return toThemeKey(value).trim() === "nao informado";
+}
+
+function extractItemsFromOptions(options: unknown) {
+  if (!options || typeof options !== "object") {
+    return [];
+  }
+
+  const items = (options as { items?: unknown }).items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map(normalizeThemeOption)
+    .filter((item): item is string => item !== null);
+}
+
+function extractThemesFromSchema(schema: unknown) {
+  if (!schema || typeof schema !== "object") {
+    return [];
+  }
+
+  const result: string[] = [];
+  const schemaRecord = schema as Record<string, unknown>;
+
+  const schemaOpiniao = schemaRecord.opiniao;
+  if (schemaOpiniao && typeof schemaOpiniao === "object") {
+    const options = (schemaOpiniao as Record<string, unknown>).options;
+    result.push(...extractItemsFromOptions(options));
+  }
+
+  const fields = schemaRecord.fields;
+  if (Array.isArray(fields)) {
+    for (const field of fields) {
+      if (!field || typeof field !== "object") {
+        continue;
+      }
+      const fieldRecord = field as Record<string, unknown>;
+      if (String(fieldRecord.name ?? "").trim() !== "opiniao") {
+        continue;
+      }
+      result.push(...extractItemsFromOptions(fieldRecord.options));
+    }
+  }
+
+  return result;
+}
+
+function mergeProjectThemes(
+  formThemes: string[],
+  responseThemes: Array<{ tema: string; total: number }>
+) {
+  const merged = new Map<string, string>();
+
+  for (const theme of formThemes) {
+    if (!theme || isUnknownTheme(theme)) {
+      continue;
+    }
+    const key = toThemeKey(theme);
+    if (!merged.has(key)) {
+      merged.set(key, theme);
+    }
+  }
+
+  for (const row of responseThemes) {
+    const theme = String(row.tema ?? "").trim();
+    if (!theme || isUnknownTheme(theme)) {
+      continue;
+    }
+    const key = toThemeKey(theme);
+    if (!merged.has(key)) {
+      merged.set(key, theme);
+    }
+  }
+
+  return Array.from(merged.values()).sort((a, b) =>
+    a.localeCompare(b, "pt-BR", { sensitivity: "base" })
+  );
+}
+
 function toMonthLabel(value: Date) {
   const year = value.getUTCFullYear();
   const month = String(value.getUTCMonth() + 1).padStart(2, "0");
@@ -107,9 +201,17 @@ class LoginService {
     let monthlyRows: MonthlyResponseRow[] = [];
     let last7DaysRows: Last7DaysResponseRow[] = [];
     let themeRows: ThemeResponseRow[] = [];
+    let themeFormsByProjectRows: Array<{
+      projetoId: number;
+      versions: Array<{
+        schema: unknown;
+        fields: Array<{ options: unknown }>;
+      }>;
+    }> = [];
 
     if (projectIds.length) {
-      [monthlyRows, last7DaysRows, themeRows] = await Promise.all([
+      [monthlyRows, last7DaysRows, themeRows, themeFormsByProjectRows] =
+        await Promise.all([
         prisma.$queryRaw<MonthlyResponseRow[]>(Prisma.sql`
           SELECT
             r."projetoId" AS "projetoId",
@@ -141,6 +243,22 @@ class LoginService {
           GROUP BY r."projetoId", COALESCE(NULLIF(BTRIM(f."value"), ''), 'Nao informado')
           ORDER BY r."projetoId" ASC, "total" DESC, "tema" ASC
         `),
+        prisma.form.findMany({
+          where: { projetoId: { in: projectIds } },
+          select: {
+            projetoId: true,
+            versions: {
+              where: { isActive: true },
+              select: {
+                schema: true,
+                fields: {
+                  where: { name: "opiniao" },
+                  select: { options: true },
+                },
+              },
+            },
+          },
+        }),
       ]);
     }
 
@@ -165,6 +283,42 @@ class LoginService {
       const projectThemes = themesByProject.get(row.projetoId) ?? [];
       projectThemes.push({ tema: row.tema, total: toNumber(row.total) });
       themesByProject.set(row.projetoId, projectThemes);
+    }
+
+    const projectThemesFromFormsMap = new Map<number, Map<string, string>>();
+    for (const formRow of themeFormsByProjectRows) {
+      const currentThemes =
+        projectThemesFromFormsMap.get(formRow.projetoId) ?? new Map<string, string>();
+
+      for (const version of formRow.versions) {
+        for (const theme of extractThemesFromSchema(version.schema)) {
+          const key = toThemeKey(theme);
+          if (!currentThemes.has(key)) {
+            currentThemes.set(key, theme);
+          }
+        }
+
+        for (const field of version.fields) {
+          for (const theme of extractItemsFromOptions(field.options)) {
+            const key = toThemeKey(theme);
+            if (!currentThemes.has(key)) {
+              currentThemes.set(key, theme);
+            }
+          }
+        }
+      }
+
+      projectThemesFromFormsMap.set(formRow.projetoId, currentThemes);
+    }
+
+    const projectThemesFromFormsByProject = new Map<number, string[]>();
+    for (const [projetoId, themes] of projectThemesFromFormsMap.entries()) {
+      projectThemesFromFormsByProject.set(
+        projetoId,
+        Array.from(themes.values()).sort((a, b) =>
+          a.localeCompare(b, "pt-BR", { sensitivity: "base" })
+        )
+      );
     }
 
     return {
@@ -192,6 +346,10 @@ class LoginService {
           assignedAt: projeto.assignedAt,
           access: projeto.access,
           hiddenTabs: hiddenTabsByProject[projeto.projeto.id] ?? [],
+          temasDoProjeto: mergeProjectThemes(
+            projectThemesFromFormsByProject.get(projeto.projeto.id) ?? [],
+            themesByProject.get(projeto.projeto.id) ?? []
+          ),
           metrics: {
             responsesLast7Days: last7DaysByProject.get(projeto.projeto.id) ?? 0,
             responsesByMonthLast12Months: monthLabels.map((month) => ({

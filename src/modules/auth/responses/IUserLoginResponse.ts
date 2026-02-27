@@ -13,6 +13,7 @@ type ProjetoResumo = {
   assignedAt?: Date;
   access: ProjetoAccessLevel;
   hiddenTabs: string[];
+  temasDoProjeto: string[];
   metrics: {
     responsesLast7Days: number;
     responsesByMonthLast12Months: Array<{

@@ -22,6 +22,139 @@ type ThemeResponseRow = {
   total: number;
 };
 
+function normalizeThemeOption(value: unknown) {
+  const normalized = String(value ?? "").trim().replace(/\s+/g, " ");
+  return normalized.length ? normalized : null;
+}
+
+function toThemeKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isUnknownTheme(value: string) {
+  return toThemeKey(value).trim() === "nao informado";
+}
+
+function extractItemsFromOptions(options: unknown) {
+  if (!options || typeof options !== "object") {
+    return [];
+  }
+
+  const items = (options as { items?: unknown }).items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map(normalizeThemeOption)
+    .filter((item): item is string => item !== null);
+}
+
+function extractThemesFromSchema(schema: unknown) {
+  if (!schema || typeof schema !== "object") {
+    return [];
+  }
+
+  const result: string[] = [];
+  const schemaRecord = schema as Record<string, unknown>;
+
+  const schemaOpiniao = schemaRecord.opiniao;
+  if (schemaOpiniao && typeof schemaOpiniao === "object") {
+    const options = (schemaOpiniao as Record<string, unknown>).options;
+    result.push(...extractItemsFromOptions(options));
+  }
+
+  const fields = schemaRecord.fields;
+  if (Array.isArray(fields)) {
+    for (const field of fields) {
+      if (!field || typeof field !== "object") {
+        continue;
+      }
+      const fieldRecord = field as Record<string, unknown>;
+      if (String(fieldRecord.name ?? "").trim() !== "opiniao") {
+        continue;
+      }
+      result.push(...extractItemsFromOptions(fieldRecord.options));
+    }
+  }
+
+  return result;
+}
+
+function extractProjectThemesFromForms(
+  forms: Array<{
+    versions: Array<{
+      isActive: boolean;
+      schema: unknown;
+      fields: Array<{ name: string; options: unknown }>;
+    }>;
+  }>
+) {
+  const themes = new Map<string, string>();
+
+  for (const form of forms) {
+    for (const version of form.versions.filter((item) => item.isActive)) {
+      for (const theme of extractThemesFromSchema(version.schema)) {
+        const key = toThemeKey(theme);
+        if (!themes.has(key)) {
+          themes.set(key, theme);
+        }
+      }
+
+      for (const field of version.fields) {
+        if (field.name !== "opiniao") {
+          continue;
+        }
+        for (const theme of extractItemsFromOptions(field.options)) {
+          const key = toThemeKey(theme);
+          if (!themes.has(key)) {
+            themes.set(key, theme);
+          }
+        }
+      }
+    }
+  }
+
+  return Array.from(themes.values()).sort((a, b) =>
+    a.localeCompare(b, "pt-BR", { sensitivity: "base" })
+  );
+}
+
+function mergeProjectThemes(
+  formThemes: string[],
+  responseThemes: Array<{ tema: string; total: number }>
+) {
+  const merged = new Map<string, string>();
+
+  for (const theme of formThemes) {
+    if (!theme || isUnknownTheme(theme)) {
+      continue;
+    }
+    const key = toThemeKey(theme);
+    if (!merged.has(key)) {
+      merged.set(key, theme);
+    }
+  }
+
+  for (const row of responseThemes) {
+    const theme = String(row.tema ?? "").trim();
+    if (!theme || isUnknownTheme(theme)) {
+      continue;
+    }
+    const key = toThemeKey(theme);
+    if (!merged.has(key)) {
+      merged.set(key, theme);
+    }
+  }
+
+  return Array.from(merged.values()).sort((a, b) =>
+    a.localeCompare(b, "pt-BR", { sensitivity: "base" })
+  );
+}
+
 function toMonthLabel(value: Date) {
   const year = value.getUTCFullYear();
   const month = String(value.getUTCMonth() + 1).padStart(2, "0");
@@ -144,6 +277,10 @@ export class ListProjetosByUseridService {
         return {
           ...project,
           users: safeUsers,
+          temasDoProjeto: mergeProjectThemes(
+            extractProjectThemesFromForms(project.forms ?? []),
+            themesByProject.get(project.id) ?? []
+          ),
           metrics: {
             responsesLast7Days: last7DaysByProject.get(project.id) ?? 0,
             responsesByMonthLast12Months: monthLabels.map((month) => ({
