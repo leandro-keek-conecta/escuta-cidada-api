@@ -8,8 +8,8 @@ import {
 const hexColorRegex = /^#[0-9a-fA-F]{6}$/;
 
 export const UpdateProjetoUpdateSchema = Z.object({
-  slug: Z.string().trim().min(1, "O slug do projeto e obrigatorio"),
-  name: Z.string().trim().min(1, "O nome do projeto e obrigatorio"),
+  slug: Z.string().trim().min(1, "O slug do projeto e obrigatorio").optional(),
+  name: Z.string().trim().min(1, "O nome do projeto e obrigatorio").optional(),
   cliente: Z.string().trim().optional(),
   descricaoCurta: Z.string().trim().optional(),
   reportId: Z.string().trim().optional(),
@@ -19,7 +19,7 @@ export const UpdateProjetoUpdateSchema = Z.object({
     .regex(hexColorRegex, "Informe a cor no formato hexadecimal (#RRGGBB)")
     .optional(),
   logoUrl: Z.string().url("logoUrl deve ser uma URL valida").optional(),
-  ativo: Z.boolean().default(true),
+  ativo: Z.boolean().optional(),
   themeConfig: Z.record(Z.any()).optional(),
   heroConfig: Z.record(Z.any()).optional(),
   users: Z.array(

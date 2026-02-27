@@ -13,6 +13,7 @@ const Types = {
   ProjetoRepository: Symbol("ProjetoRepository"),
   ProjetoController: Symbol("ProjetoController"),
   CreateProjetoService: Symbol("CreateProjetoService"),
+  GetProjetoService: Symbol("GetProjetoService"),
   ListProjetoService: Symbol("ListProjetoService"),
   UpdateProjetoService: Symbol("UpdateProjetoService"),
   DeleteProjetoService: Symbol("DeleteProjetoService"),

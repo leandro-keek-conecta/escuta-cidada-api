@@ -8,6 +8,8 @@ import { UpdateProjetoUpdateSchema } from "@/modules/projeto/http/validators/upd
 import { DeleteProjetoService } from "@/modules/projeto/services/DeleteProjetoService";
 import { ProjetoDoesNotExist } from "@/modules/projeto/errors/ProjetoDoesNotExist";
 import { CreateProjetoService } from "@/modules/projeto/services/CreateProjetoService";
+import { GetProjetoService } from "@/modules/projeto/services/GetProjetoService";
+import { ListProjetosByUseridService } from "@/modules/projeto/services/ListProjetoByUserService";
 @injectable()
 export class ProjetoController {
   
@@ -55,9 +57,12 @@ export class ProjetoController {
     }
   }
 
-  async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    const updateProjetoService = AppContainer.resolve<UpdateProjetoService>(UpdateProjetoService);
-    const dataReq = UpdateProjetoUpdateSchema.parse(request.body);
+  async listByUserId(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    const listProjetosByUserIdService =
+      AppContainer.resolve<ListProjetosByUseridService>(ListProjetosByUseridService);
     const { id } = request.params as { id?: string };
     const userId = Number(id);
 
@@ -65,9 +70,64 @@ export class ProjetoController {
       return reply.status(400).send({ message: "Invalid user id" });
     }
 
+    try {
+      const projetos = await listProjetosByUserIdService.execute(userId);
+
+      return reply.status(200).send({
+        message: "Successfully listed projetos by user",
+        data: projetos,
+      });
+    } catch (err: any) {
+      console.error(
+        "Erro no controlador ao listar projetos por usuário:",
+        JSON.stringify(err, null, 2)
+      );
+      return reply.status(500).send({
+        message: "An error occurred while listing projetos by user",
+      });
+    }
+  }
+
+  async getById(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    const getProjetoService =
+      AppContainer.resolve<GetProjetoService>(GetProjetoService);
+    const { id } = request.params as { id?: string };
+    const projetoId = Number(id);
+
+    if (!id || Number.isNaN(projetoId)) {
+      return reply.status(400).send({ message: "Invalid projeto id" });
+    }
 
     try {
-      await updateProjetoService.execute({ id: userId, data: dataReq });
+      const projeto = await getProjetoService.execute(projetoId);
+      return reply.status(200).send({
+        message: "Successfully retrieved projeto",
+        data: projeto,
+      });
+    } catch (error) {
+      if (error instanceof ProjetoDoesNotExist) {
+        return reply.status(404).send({ message: error.message });
+      }
+      return reply.status(500).send({ message: "Internal Server Error" });
+    }
+  }
+
+  async update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const updateProjetoService = AppContainer.resolve<UpdateProjetoService>(UpdateProjetoService);
+    const dataReq = UpdateProjetoUpdateSchema.parse(request.body);
+    const { id } = request.params as { id?: string };
+    const projetoId = Number(id);
+
+    if (!id || Number.isNaN(projetoId)) {
+      return reply.status(400).send({ message: "Invalid projeto id" });
+    }
+
+
+    try {
+      await updateProjetoService.execute({ id: projetoId, data: dataReq });
       return reply
         .status(200)
         .send({ message: "Successfully Updated Projeto" });
@@ -85,14 +145,14 @@ export class ProjetoController {
     try {
       const { id } = request.params as { id: number };
       await deleteService.execute(Number(id));
-      return reply.status(200).send({ message: "Successfully deleted User" });
+      return reply.status(200).send({ message: "Successfully deleted Projeto" });
     } catch (error: any) {
       if (error instanceof ProjetoDoesNotExist) {
         return reply.status(404).send({ message: error.message });
       }
       return reply
         .status(500)
-        .send({ message: "An error occurred while deleting the user" });
+        .send({ message: "An error occurred while deleting the projeto" });
     }
   }
 }

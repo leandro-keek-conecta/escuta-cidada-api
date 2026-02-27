@@ -105,10 +105,15 @@ Authorization: Bearer <token>
   - `start`, `end` (opcionais)
   - `monthStart`, `monthEnd` (opcionais)
   - `dayStart`, `dayEnd` (opcionais)
+  - `temas`, `tipoOpiniao`, `genero`, `bairros`, `faixaEtaria`, `textoOpiniao`, `campanhas` (opcionais)
   - `limitTopThemes`, `limitTopNeighborhoods`, `limitDistribution` (opcionais)
 
 **Campos usados no report**
 - `opiniao`, `bairro`, `genero`, `campanha`, `tipo_opiniao`, `ano_nascimento`.
+
+**Normalizacao analitica**
+- `topTemas` e `tipoOpiniao` sao consolidados por chave normalizada
+  (case/acento/espacos), mantendo dados brutos intactos no banco.
 
 **Exemplo de uso**
 ```
@@ -135,6 +140,98 @@ Authorization: Bearer <token>
     "tipoOpiniao": [{ "label": "Elogio", "value": 80 }],
     "topTemas": [{ "id": 1, "tema": "Atendimento", "total": 20 }],
     "statusFunnel": [{ "status": "COMPLETED", "count": 100 }]
+  }
+}
+```
+
+### GET /project-report
+- Auth: sim (ADMIN ou SUPERADMIN)
+- Query:
+  - `projetoId` ou `formVersionId` (obrigatorio)
+  - `formId` (opcional)
+  - `formIds` (opcional, lista separada por virgula ou repetindo query)
+  - `dateField` (createdAt | submittedAt | completedAt | startedAt)
+  - `start`, `end` (opcionais)
+  - `monthStart`, `monthEnd` (opcionais)
+  - `dayStart`, `dayEnd` (opcionais)
+  - `limitTopForms` (opcional, default 10, max 200)
+
+**Foco do endpoint**
+- Metricas gerais de respostas do projeto, sem depender de campos semanticos
+  como `opiniao`, `bairro` ou `genero`.
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/form-response/metrics/project-report?projetoId=10&dateField=createdAt
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta (resumo)**
+```json
+{
+  "data": {
+    "cards": {
+      "totalOpinions": 60,
+      "totalComplaints": 10,
+      "totalPraise": 30,
+      "totalSuggestions": 20,
+      "totalResponses": 120,
+      "totalOpinionFormResponses": 60,
+      "totalCompleted": 90,
+      "totalStarted": 20,
+      "totalAbandoned": 10,
+      "completionRate": 75
+    },
+    "lineByMonth": [{ "label": "2026-01", "value": 50 }],
+    "lineByDay": [{ "label": "2026-01-15", "value": 5 }],
+    "responsesByForm": [{ "formId": 1, "label": "Pesquisa NPS", "value": 42 }],
+    "statusFunnel": [{ "status": "COMPLETED", "count": 90 }]
+  }
+}
+```
+
+### GET /form-filters
+- Auth: sim (ADMIN ou SUPERADMIN)
+- Query:
+  - `projetoId` ou `formVersionId` (obrigatorio)
+  - `formId` (opcional)
+  - `formIds` (opcional, lista separada por virgula ou repetindo query)
+  - `dateField` (createdAt | submittedAt | completedAt | startedAt, default createdAt)
+  - `start`, `end`, `status` (opcionais)
+  - `limitValuesPerField` (opcional, default 30, max 200)
+
+**Foco do endpoint**
+- Retorna metadados por formulario (campos da versao ativa) e valores agregados por
+  campo para montar filtros dinamicos no front.
+
+**Exemplo de uso**
+```
+GET /escuta-cidada-api/form-response/metrics/form-filters?projetoId=10&formIds=3,9&limitValuesPerField=20
+Authorization: Bearer <token>
+```
+
+**Exemplo de resposta (resumo)**
+```json
+{
+  "data": {
+    "dateField": "createdAt",
+    "dateRange": { "min": "2026-02-01T00:00:00.000Z", "max": "2026-02-26T23:59:59.999Z" },
+    "forms": [
+      {
+        "formId": 3,
+        "formName": "Formulario de Opiniao",
+        "formVersionId": 7,
+        "fields": [
+          {
+            "fieldId": 13,
+            "name": "tipo_opiniao",
+            "label": "Tipo de opiniao",
+            "suggestedFilter": "multi-select",
+            "values": [{ "value": "Reclamacao", "count": 12 }]
+          }
+        ]
+      }
+    ]
   }
 }
 ```

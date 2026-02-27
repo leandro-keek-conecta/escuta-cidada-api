@@ -1,26 +1,10 @@
 import { Prisma } from "@prisma/client";
 
-type UserSafeSelect = {
-  id: true;
-  email: true;
-  name: true;
-  profession: true;
-  role: true;
-  createdAt: true;
-  updatedAt: true;
-};
-
 export type FormWithRelations = Prisma.FormGetPayload<{
   include: {
     versions: {
       include: {
         fields: true;
-        responses: {
-          include: {
-            fields: true;
-            user: { select: UserSafeSelect };
-          };
-        };
       };
     };
   };
