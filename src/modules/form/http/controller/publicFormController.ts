@@ -10,12 +10,16 @@ import {
   publicGetFormBySlugParamsSchema,
 } from "../validators/publicGetFormValidator";
 import { PublicFormReadService } from "../../services/PublicFormReadService";
+import { SubmitPublicFormResponseService } from "../../services/SubmitPublicFormResponseService";
+import { submitFormResponseSchema } from "@/modules/FormResponse/http/validators/submitFormResponseValidator";
 
 @injectable()
 export class PublicFormController {
   constructor(
     @inject(Types.PublicFormReadService)
-    private readonly publicFormReadService: PublicFormReadService
+    private readonly publicFormReadService: PublicFormReadService,
+    @inject(Types.SubmitPublicFormResponseService)
+    private readonly submitPublicFormResponseService: SubmitPublicFormResponseService
   ) {}
 
   async getById(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
@@ -76,6 +80,36 @@ export class PublicFormController {
 
       return reply.status(StatusCodes.OK).send({
         message: "Formulário público retornado com sucesso",
+        data: result,
+      });
+    } catch (error: any) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async submitByFormSlug(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try {
+      const { projetoSlug, formSlug } = publicGetFormBySlugParamsSchema.parse(
+        request.params
+      );
+      const data = submitFormResponseSchema.parse(request.body);
+
+      const result = await this.submitPublicFormResponseService.executeBySlug({
+        projetoSlug,
+        formSlug,
+        data,
+        requestIp: request.ip,
+        requestUserAgent:
+          typeof request.headers["user-agent"] === "string"
+            ? request.headers["user-agent"]
+            : undefined,
+      });
+
+      return reply.status(StatusCodes.CREATED).send({
+        message: "Resposta publica criada com sucesso",
         data: result,
       });
     } catch (error: any) {

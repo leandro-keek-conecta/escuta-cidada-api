@@ -13,7 +13,7 @@ import {
   UpdateFormResponseInput,
 } from "../http/validators/updateFormResponseValidator";
 import { FormResponseDoesNotExist } from "../errors/FormResponseDoesNotExist";
-import { buildResponseFieldData } from "../utils/buildResponseFieldData";
+import { buildResponseFieldEntries } from "../utils/buildResponseFieldEntries";
 import { IFormFieldRepository } from "@/modules/formField/repositories/IFormFieldRepository";
 
 interface IRequest {
@@ -58,7 +58,7 @@ export class UpdateFormResponseService {
         | undefined;
 
       if (parsed.fields) {
-        const formVersion = await this.formVersionRepository.findById(
+        const formVersion = await this.formVersionRepository.findByIdWithForm(
           existing.formVersionId
         );
 
@@ -66,6 +66,16 @@ export class UpdateFormResponseService {
           throw new AppError(
             "Versão do formulário não encontrada",
             StatusCodes.NOT_FOUND
+          );
+        }
+
+        if (
+          parsed.projetoId !== undefined &&
+          formVersion.form.projetoId !== parsed.projetoId
+        ) {
+          throw new AppError(
+            "Versao do formulario nao pertence ao projeto informado",
+            StatusCodes.UNPROCESSABLE_ENTITY
           );
         }
 
@@ -93,14 +103,29 @@ export class UpdateFormResponseService {
           formFields.map((field) => [field.name, field])
         );
 
-        fieldsToCreate = Object.entries(cleanData).map(([key, value]) =>
-          buildResponseFieldData({
-            fieldName: key,
-            value,
-            fieldId: fieldIdByName.get(key),
-            fieldDefinition: definitionByName.get(key),
-          })
+        fieldsToCreate = buildResponseFieldEntries({
+          cleanData,
+          fieldIdByName,
+          definitionByName,
+        });
+      } else if (parsed.projetoId !== undefined) {
+        const formVersion = await this.formVersionRepository.findByIdWithForm(
+          existing.formVersionId
         );
+
+        if (!formVersion) {
+          throw new AppError(
+            "Versao do formulario nao encontrada",
+            StatusCodes.NOT_FOUND
+          );
+        }
+
+        if (formVersion.form.projetoId !== parsed.projetoId) {
+          throw new AppError(
+            "Versao do formulario nao pertence ao projeto informado",
+            StatusCodes.UNPROCESSABLE_ENTITY
+          );
+        }
       }
 
       if (

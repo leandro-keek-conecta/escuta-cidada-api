@@ -3,6 +3,8 @@ import { z } from "zod";
 // 1. O Mapa de Tipos (Sua "Caixa de Ferramentas")
 const typeMapper: Record<string, z.ZodTypeAny> = {
   text: z.string(),
+  textarea: z.string(),
+  longtext: z.string(),
   email: z.string().email(),
   number: z.coerce.number(),
   date: z.coerce.date(),

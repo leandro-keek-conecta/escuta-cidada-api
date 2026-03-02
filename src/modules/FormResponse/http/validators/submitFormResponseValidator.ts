@@ -1,12 +1,26 @@
 import * as Z from "zod";
+import { FormResponseStatus } from "@prisma/client";
 
 export const submitFormResponseSchema = Z.object({
-  projetoSlug: Z.string().trim().min(1),
-  formId: Z.number().int().positive().optional(),
-  formSlug: Z.string().trim().min(1).optional(),
-  payload: Z.record(Z.any()),
+  formVersionId: Z.number().int().positive().optional(),
+  status: Z.nativeEnum(FormResponseStatus).optional(),
+  startedAt: Z.coerce.date().optional(),
+  completedAt: Z.coerce.date().optional(),
+  submittedAt: Z.coerce.date().optional(),
+  fields: Z.record(Z.any()),
   ip: Z.string().optional(),
   userAgent: Z.string().optional(),
+  source: Z.string().optional(),
+  channel: Z.string().optional(),
+  utmSource: Z.string().optional(),
+  utmMedium: Z.string().optional(),
+  utmCampaign: Z.string().optional(),
+  deviceType: Z.string().optional(),
+  os: Z.string().optional(),
+  browser: Z.string().optional(),
+  locale: Z.string().optional(),
+  timezone: Z.string().optional(),
+  metadata: Z.any().optional(),
 });
 
 export type SubmitFormResponseInput = Z.infer<typeof submitFormResponseSchema>;

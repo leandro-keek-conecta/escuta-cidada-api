@@ -10,7 +10,7 @@ import {
   CreateFormResponseInput,
 } from "../http/validators/createFormResponseValidator";
 import { createDynamicSchema } from "../utils/createDynamicSchema";
-import { buildResponseFieldData } from "../utils/buildResponseFieldData";
+import { buildResponseFieldEntries } from "../utils/buildResponseFieldEntries";
 import { IFormVersionRepository } from "@/modules/FormVersion/repositories/IFormVersionRepository";
 import { IFormFieldRepository } from "@/modules/formField/repositories/IFormFieldRepository";
 
@@ -30,7 +30,7 @@ export class CreateFormResponseService {
   public async execute({ data }: IRequest) {
     try {
       const parsed = createFormResponseSchema.parse(data);
-      const formVersion = await this.formVersionRepository.findById(
+      const formVersion = await this.formVersionRepository.findByIdWithForm(
         parsed.formVersionId
       );
 
@@ -38,6 +38,13 @@ export class CreateFormResponseService {
         throw new AppError(
           "Versão do formulário não encontrada",
           StatusCodes.NOT_FOUND
+        );
+      }
+
+      if (formVersion.form.projetoId !== parsed.projetoId) {
+        throw new AppError(
+          "Versao do formulario nao pertence ao projeto informado",
+          StatusCodes.UNPROCESSABLE_ENTITY
         );
       }
 
@@ -68,14 +75,11 @@ export class CreateFormResponseService {
         cleanData = validationResult.data;
       }
 
-      const fieldsToCreate = Object.entries(cleanData).map(([key, value]) =>
-        buildResponseFieldData({
-          fieldName: key,
-          value,
-          fieldId: fieldIdByName.get(key),
-          fieldDefinition: definitionByName.get(key),
-        })
-      );
+      const fieldsToCreate = buildResponseFieldEntries({
+        cleanData,
+        fieldIdByName,
+        definitionByName,
+      });
 
       const hasFields = fieldsToCreate.length > 0;
       const inferredStatus =
