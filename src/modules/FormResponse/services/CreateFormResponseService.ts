@@ -4,6 +4,7 @@ import { StatusCodes } from "http-status-codes";
 import * as Z from "zod";
 import AppError from "@/common/errors/AppError";
 import Types from "@/common/container/types";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { IFormResponseRepository } from "../repositories/IFormResponseRepository";
 import {
   createFormResponseSchema,
@@ -89,7 +90,7 @@ export class CreateFormResponseService {
           : FormResponseStatus.STARTED);
       const now = new Date();
 
-      return await this.formResponseRepository.create({
+      const created = await this.formResponseRepository.create({
         projetoId: parsed.projetoId,
         formVersionId: parsed.formVersionId,
         userId: parsed.userId,
@@ -120,6 +121,18 @@ export class CreateFormResponseService {
             }
           : undefined,
       });
+
+      realtimeGateway.emitChange({
+        action: "created",
+        entity: "formResponse",
+        entityId: created.id,
+        projetoId: created.projetoId,
+        formId: formVersion.form.id,
+        formVersionId: created.formVersionId,
+        occurredAt: new Date().toISOString(),
+      });
+
+      return created;
     } catch (error) {
       if (error instanceof Z.ZodError) {
         throw new AppError(

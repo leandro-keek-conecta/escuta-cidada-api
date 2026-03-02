@@ -5,6 +5,7 @@ import * as Z from "zod";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { IFormVersionRepository } from "@/modules/FormVersion/repositories/IFormVersionRepository";
 import { createDynamicSchema } from "../utils/createDynamicSchema";
 import { IFormResponseRepository } from "../repositories/IFormResponseRepository";
@@ -254,7 +255,36 @@ export class UpdateFormResponseService {
         };
       }
 
-      return await this.formResponseRepository.update(id, updateData);
+      const formVersionContext = await this.formVersionRepository.findByIdWithForm(
+        existing.formVersionId
+      );
+      const updated = await this.formResponseRepository.update(id, updateData);
+
+      realtimeGateway.emitChange(
+        {
+          action: "updated",
+          entity: "formResponse",
+          entityId: updated.id,
+          projetoId: updated.projetoId,
+          formId: formVersionContext?.form.id,
+          formVersionId: updated.formVersionId,
+          occurredAt: new Date().toISOString(),
+        },
+        {
+          additionalScopes:
+            existing.projetoId !== updated.projetoId
+              ? [
+                  {
+                    projetoId: existing.projetoId,
+                    formId: formVersionContext?.form.id,
+                    formVersionId: existing.formVersionId,
+                  },
+                ]
+              : undefined,
+        }
+      );
+
+      return updated;
     } catch (error: any) {
       if (error instanceof Z.ZodError) {
         throw new AppError(

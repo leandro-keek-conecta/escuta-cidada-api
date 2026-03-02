@@ -5,6 +5,7 @@ import { StatusCodes } from "http-status-codes";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { IFormsRepository } from "../repositories/IFormRepository";
 import { updateFormSchema, UpdateFormInput } from "../http/validators/updateFormValidator";
 import { FormDoesNotExist } from "../errors/FormDoesNotExist";
@@ -71,6 +72,27 @@ export class UpdateFormService {
       }
 
       const updated = await this.formRepository.updateForm(id, updateData);
+      realtimeGateway.emitChange(
+        {
+          action: "updated",
+          entity: "form",
+          entityId: updated.id,
+          projetoId: updated.projetoId,
+          formId: updated.id,
+          occurredAt: new Date().toISOString(),
+        },
+        {
+          additionalScopes:
+            existing.projetoId !== updated.projetoId
+              ? [
+                  {
+                    projetoId: existing.projetoId,
+                    formId: existing.id,
+                  },
+                ]
+              : undefined,
+        }
+      );
       return updated;
     } catch (error: any) {
       if (error instanceof Z.ZodError) {

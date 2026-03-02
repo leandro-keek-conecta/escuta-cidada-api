@@ -5,6 +5,7 @@ import { StatusCodes } from "http-status-codes";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { IFormsRepository } from "../repositories/IFormRepository";
 import {
   CreateFormInput,
@@ -53,6 +54,14 @@ export class CreateFormService {
       };
 
       const created = await this.formRepository.create(formData);
+      realtimeGateway.emitChange({
+        action: "created",
+        entity: "form",
+        entityId: created.id,
+        projetoId: created.projetoId,
+        formId: created.id,
+        occurredAt: new Date().toISOString(),
+      });
       return created;
     } catch (error: any) {
       if (error instanceof Z.ZodError) {

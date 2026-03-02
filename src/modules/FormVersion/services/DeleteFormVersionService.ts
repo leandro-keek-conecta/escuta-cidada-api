@@ -2,6 +2,7 @@ import Types from "@/common/container/types";
 import { inject, injectable } from "inversify";
 import AppError from "@/common/errors/AppError";
 import { StatusCodes } from "http-status-codes";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 
 import { FormVersionDoesNotExist } from "../errors/FormVersionDoesNotExist";
 import { IFormVersionRepository } from "../repositories/IFormVersionRepository";
@@ -24,7 +25,17 @@ export class DeleteFormVersionService {
       if (!existFormVersion) {
         throw new FormVersionDoesNotExist();
       }
+      const existingWithForm = await this.formVersionRepository.findByIdWithForm(id);
       await this.formVersionRepository.delete(id);
+      realtimeGateway.emitChange({
+        action: "deleted",
+        entity: "formVersion",
+        entityId: existFormVersion.id,
+        projetoId: existingWithForm?.form.projetoId,
+        formId: existFormVersion.formId,
+        formVersionId: existFormVersion.id,
+        occurredAt: new Date().toISOString(),
+      });
     } catch (error: any) {
       if (error instanceof AppError || error instanceof FormVersionDoesNotExist) {
         throw error;
