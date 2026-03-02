@@ -3,6 +3,7 @@ import { StatusCodes } from "http-status-codes";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { IFormsRepository } from "../repositories/IFormRepository";
 import { FormDoesNotExist } from "../errors/FormDoesNotExist";
 
@@ -22,6 +23,14 @@ export class DeleteFormService {
       }
 
       await this.formRepository.delete(id);
+      realtimeGateway.emitChange({
+        action: "deleted",
+        entity: "form",
+        entityId: existing.id,
+        projetoId: existing.projetoId,
+        formId: existing.id,
+        occurredAt: new Date().toISOString(),
+      });
     } catch (error: any) {
       if (error instanceof AppError || error instanceof FormDoesNotExist) {
         throw error;

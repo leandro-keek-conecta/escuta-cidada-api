@@ -22,4 +22,9 @@ export async function routerPublicForm(app: FastifyInstance) {
     "/public/projetos/:projetoSlug/forms/slug/:formSlug",
     controller.getByFormSlug.bind(controller)
   );
+
+  app.post(
+    "/public/projetos/:projetoSlug/forms/slug/:formSlug/responses",
+    controller.submitByFormSlug.bind(controller)
+  );
 }

@@ -63,6 +63,46 @@ POWER_BI_PASSWORD=<senha>
 - Automation chat (JWT admin): `POST /automationchat/create`, `PATCH /automationchat/update/:id`, `GET /automationchat/list/:projectId`, `DELETE /automationchat/delete/:id`
 - Power BI (JWT): `GET /powerbi/embed-token` gera token de embed usando as variaveis `POWER_BI_*`
 
+## Realtime com Socket.IO
+
+- O servidor Socket.IO sobe no mesmo host e porta da API.
+- Todo cliente conectado entra automaticamente na room `scope:global`.
+- Para assinar escopos especificos, emita `subscribe` com um destes payloads:
+
+```json
+{ "projetoId": 10 }
+```
+
+```json
+{ "formId": 25 }
+```
+
+```json
+{ "formVersionId": 42 }
+```
+
+- Para sair de um escopo, emita `unsubscribe` com o mesmo payload.
+- Eventos emitidos pelo backend:
+
+```json
+{
+  "event": "domain:changed",
+  "payload": {
+    "action": "created",
+    "entity": "formResponse",
+    "entityId": 123,
+    "projetoId": 10,
+    "formId": 25,
+    "formVersionId": 42,
+    "occurredAt": "2026-03-02T12:00:00.000Z"
+  }
+}
+```
+
+- `entity` pode ser `form`, `formVersion`, `formField` ou `formResponse`.
+- `action` pode ser `created`, `updated` ou `deleted`.
+- O payload foi mantido enxuto para o front invalidar queries e refazer fetch do recurso afetado.
+
 ## Estrutura
 
 - `src/server.ts`: inicializa a aplicacao, conecta ao banco e sobe o Fastify

@@ -4,6 +4,8 @@ import * as Z from "zod";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
+import { IFormVersionRepository } from "@/modules/FormVersion/repositories/IFormVersionRepository";
 import { IFormFieldRepository } from "../repositories/IFormFieldRepository";
 import {
   createFormFieldSchema,
@@ -18,6 +20,8 @@ interface IRequest {
 export class CreateFormFieldService {
   @inject(Types.FormFieldRepository)
   private formFieldRepository!: IFormFieldRepository;
+  @inject(Types.FormVersionRepository)
+  private formVersionRepository!: IFormVersionRepository;
 
   public async execute({ data }: IRequest) {
     try {
@@ -31,6 +35,20 @@ export class CreateFormFieldService {
         required: parsed.required ?? false,
         options: parsed.options ?? undefined,
         ordem: parsed.ordem,
+      });
+
+      const formVersion = await this.formVersionRepository.findByIdWithForm(
+        created.formVersionId
+      );
+
+      realtimeGateway.emitChange({
+        action: "created",
+        entity: "formField",
+        entityId: created.id,
+        projetoId: formVersion?.form.projetoId,
+        formId: formVersion?.form.id,
+        formVersionId: created.formVersionId,
+        occurredAt: new Date().toISOString(),
       });
 
       return created;

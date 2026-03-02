@@ -34,6 +34,7 @@ import { DeleteFormService } from "@/modules/form/services/DeleteFormService";
 import { FormController } from "@/modules/form/http/controller/formController";
 import { PublicFormReadRepository } from "@/modules/form/repositories/PublicFormReadRepository";
 import { PublicFormReadService } from "@/modules/form/services/PublicFormReadService";
+import { SubmitPublicFormResponseService } from "@/modules/form/services/SubmitPublicFormResponseService";
 import { PublicFormController } from "@/modules/form/http/controller/publicFormController";
 import { IFormFieldRepository } from "@/modules/formField/repositories/IFormFieldRepository";
 import { FormFieldRepository } from "@/modules/formField/repositories/FormFieldRepository";
@@ -95,6 +96,9 @@ container.bind<DeleteFormService>(Types.DeleteFormService).to(DeleteFormService)
 container.bind<FormController>(Types.FormController).to(FormController);
 container.bind<PublicFormReadRepository>(Types.PublicFormReadRepository).to(PublicFormReadRepository);
 container.bind<PublicFormReadService>(Types.PublicFormReadService).to(PublicFormReadService);
+container
+  .bind<SubmitPublicFormResponseService>(Types.SubmitPublicFormResponseService)
+  .to(SubmitPublicFormResponseService);
 container.bind<PublicFormController>(Types.PublicFormController).to(PublicFormController);
 container.bind<IFormFieldRepository>(Types.FormFieldRepository).to(FormFieldRepository);
 container.bind<CreateFormFieldService>(Types.CreateFormFieldService).to(CreateFormFieldService);

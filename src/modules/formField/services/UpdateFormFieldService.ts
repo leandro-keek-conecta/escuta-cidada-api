@@ -4,6 +4,8 @@ import * as Z from "zod";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
+import { IFormVersionRepository } from "@/modules/FormVersion/repositories/IFormVersionRepository";
 import { IFormFieldRepository } from "../repositories/IFormFieldRepository";
 import { FormFieldDoesNotExist } from "../errors/FormFieldDoesNotExist";
 import { updateFormFieldSchema, UpdateFormFieldInput } from "../http/validators/updateFormFieldValidator";
@@ -16,6 +18,8 @@ interface IRequest {
 @injectable()
 export class UpdateFormFieldService {
   @inject(Types.FormFieldRepository) private formFieldRepository!: IFormFieldRepository;
+  @inject(Types.FormVersionRepository)
+  private formVersionRepository!: IFormVersionRepository;
 
   public async execute({ id, data }: IRequest) {
     try {
@@ -41,6 +45,39 @@ export class UpdateFormFieldService {
           ? { connect: { id: parsed.formVersionId } }
           : undefined,
       });
+
+      const currentFormVersion = await this.formVersionRepository.findByIdWithForm(
+        updated.formVersionId
+      );
+      const previousFormVersion =
+        existing.formVersionId !== updated.formVersionId
+          ? await this.formVersionRepository.findByIdWithForm(
+              existing.formVersionId
+            )
+          : null;
+
+      realtimeGateway.emitChange(
+        {
+          action: "updated",
+          entity: "formField",
+          entityId: updated.id,
+          projetoId: currentFormVersion?.form.projetoId,
+          formId: currentFormVersion?.form.id,
+          formVersionId: updated.formVersionId,
+          occurredAt: new Date().toISOString(),
+        },
+        {
+          additionalScopes: previousFormVersion
+            ? [
+                {
+                  projetoId: previousFormVersion.form.projetoId,
+                  formId: previousFormVersion.form.id,
+                  formVersionId: previousFormVersion.id,
+                },
+              ]
+            : undefined,
+        }
+      );
 
       return updated;
     } catch (error: any) {

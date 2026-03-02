@@ -5,6 +5,7 @@ import * as Z from "zod";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { createFormVersionSchema, CreateFormVersionInput } from "../http/validators/createFormVersionValidator";
 import { IFormVersionRepository } from "../repositories/IFormVersionRepository";
 
@@ -42,6 +43,19 @@ export class CreateFormVersionService {
       };
 
       const created = await this.formVersionRepository.create(formVersionData);
+      const createdWithForm = await this.formVersionRepository.findByIdWithForm(
+        created.id
+      );
+
+      realtimeGateway.emitChange({
+        action: "created",
+        entity: "formVersion",
+        entityId: created.id,
+        projetoId: createdWithForm?.form.projetoId,
+        formId: created.formId,
+        formVersionId: created.id,
+        occurredAt: new Date().toISOString(),
+      });
       return created;
     } catch (error: any) {
       if (error instanceof Z.ZodError) {

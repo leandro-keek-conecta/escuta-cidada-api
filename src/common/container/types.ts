@@ -39,6 +39,7 @@ const Types = {
   FormVersionController: Symbol("FormVersionController"),
   PublicFormReadRepository: Symbol("PublicFormReadRepository"),
   PublicFormReadService: Symbol("PublicFormReadService"),
+  SubmitPublicFormResponseService: Symbol("SubmitPublicFormResponseService"),
   PublicFormController: Symbol("PublicFormController"),
   FormFieldRepository: Symbol("FormFieldRepository"),
   CreateFormFieldService: Symbol("CreateFormFieldService"),

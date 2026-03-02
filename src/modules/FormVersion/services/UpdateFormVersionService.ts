@@ -5,6 +5,7 @@ import * as Z from "zod";
 
 import Types from "@/common/container/types";
 import AppError from "@/common/errors/AppError";
+import { realtimeGateway } from "@/common/realtime/realtimeGateway";
 import { FormVersionDoesNotExist } from "../errors/FormVersionDoesNotExist";
 import { updateFormVersionSchema, UpdateFormVersionInput } from "../http/validators/updateFormVersionValidator";
 import { IFormVersionRepository } from "../repositories/IFormVersionRepository";
@@ -62,6 +63,20 @@ export class UpdateFormVersionService {
         id,
         updateData
       );
+
+      const updatedWithForm = await this.formVersionRepository.findByIdWithForm(
+        updated.id
+      );
+
+      realtimeGateway.emitChange({
+        action: "updated",
+        entity: "formVersion",
+        entityId: updated.id,
+        projetoId: updatedWithForm?.form.projetoId,
+        formId: updated.formId,
+        formVersionId: updated.id,
+        occurredAt: new Date().toISOString(),
+      });
 
       return updated;
     } catch (error: any) {

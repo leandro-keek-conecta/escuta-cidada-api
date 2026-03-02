@@ -6,7 +6,14 @@ export const automationChatSchema = Z.object({
   slug: Z.string().trim().min(1, "O slug do chat e obrigatorio"),
   title: Z.string().trim().min(1, "O titulo do chat e obrigatorio"),
   description: Z.string().trim().optional(),
-  url: Z.string().trim().url("URL invalida"),
+  url: Z.string()
+    .trim()
+    .optional()
+    .transform((value) => value ?? "")
+    .refine(
+      (value) => value === "" || Z.string().url().safeParse(value).success,
+      "URL invalida"
+    ),
   isActive: Z.boolean().optional(),
 });
 

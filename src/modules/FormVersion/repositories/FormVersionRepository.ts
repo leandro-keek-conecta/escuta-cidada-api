@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { IFormVersionRepository } from "./IFormVersionRepository";
+import {
+  FormVersionWithForm,
+  IFormVersionRepository,
+} from "./IFormVersionRepository";
 import { FormVersion, Prisma } from "@prisma/client";
 import { injectable } from "inversify";
 
@@ -24,6 +27,20 @@ export class FormVersionRepository implements IFormVersionRepository {
   async findById(id: number): Promise<FormVersion | null> {
     return await prisma.formVersion.findUnique({
       where: { id },
+    });
+  }
+
+  async findByIdWithForm(id: number): Promise<FormVersionWithForm | null> {
+    return await prisma.formVersion.findUnique({
+      where: { id },
+      include: {
+        form: {
+          select: {
+            id: true,
+            projetoId: true,
+          },
+        },
+      },
     });
   }
 

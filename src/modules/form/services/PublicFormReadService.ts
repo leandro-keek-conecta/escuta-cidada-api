@@ -6,7 +6,7 @@ import AppError from "@/common/errors/AppError";
 import { IPublicFormReadRepository } from "../repositories/IPublicFormReadRepository";
 
 type PublicFormDTO = {
-  projeto: { slug: string; name: string; corHex: string | null };
+  projeto: { id: number; slug: string; name: string; corHex: string | null };
   form: { id: number; name: string; description: string | null };
   activeVersion: {
     id: number;
@@ -25,7 +25,7 @@ type PublicFormDTO = {
 };
 
 type PublicFormsBySlugDTO = {
-  projeto: { slug: string; name: string; corHex: string | null };
+  projeto: { id: number; slug: string; name: string; corHex: string | null };
   forms: Array<{
     id: number;
     name: string;
@@ -95,6 +95,7 @@ export class PublicFormReadService {
 
     return {
       projeto: {
+        id: projeto.id,
         slug: projeto.slug,
         name: projeto.name,
         corHex: projeto.corHex,
@@ -139,6 +140,7 @@ export class PublicFormReadService {
 
     return {
       projeto: {
+        id: projeto.id,
         slug: projeto.slug,
         name: projeto.name,
         corHex: projeto.corHex,
@@ -203,6 +205,7 @@ export class PublicFormReadService {
 
     return {
       projeto: {
+        id: projeto.id,
         slug: projeto.slug,
         name: projeto.name,
         corHex: projeto.corHex,
