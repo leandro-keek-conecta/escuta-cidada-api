@@ -350,6 +350,24 @@ export class FormResponseMetricsService {
     return params.end ?? params.dayEnd ?? params.monthEnd ?? new Date();
   }
 
+  private getCalendarDateParts(value: Date) {
+    return {
+      year: value.getUTCFullYear(),
+      month: value.getUTCMonth(),
+      day: value.getUTCDate(),
+    };
+  }
+
+  private toLocalCalendarDateStart(value: Date) {
+    const { year, month, day } = this.getCalendarDateParts(value);
+    return new Date(year, month, day, 0, 0, 0, 0);
+  }
+
+  private toLocalCalendarDateEnd(value: Date) {
+    const { year, month, day } = this.getCalendarDateParts(value);
+    return new Date(year, month, day, 23, 59, 59, 999);
+  }
+
   private isUnknownLabel(value: string) {
     return normalizeText(value) === "nao informado";
   }
@@ -1791,22 +1809,23 @@ export class FormResponseMetricsService {
 
   async summary(params: SummaryParams) {
     const referenceDay = params.day ?? new Date();
-    const dayStart = new Date(referenceDay);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(referenceDay);
-    dayEnd.setHours(23, 59, 59, 999);
+    const dayStart = this.toLocalCalendarDateStart(referenceDay);
+    const dayEnd = this.toLocalCalendarDateEnd(referenceDay);
 
-    const rangeEnd = params.rangeEnd ?? dayEnd;
+    const rangeEnd = params.rangeEnd
+      ? this.toLocalCalendarDateEnd(params.rangeEnd)
+      : dayEnd;
     const rangeStart =
-      params.rangeStart ??
-      new Date(
-        rangeEnd.getFullYear() - 1,
-        rangeEnd.getMonth(),
-        rangeEnd.getDate()
-      );
+      params.rangeStart
+        ? this.toLocalCalendarDateStart(params.rangeStart)
+        : new Date(
+            rangeEnd.getFullYear() - 1,
+            rangeEnd.getMonth(),
+            rangeEnd.getDate()
+          );
 
     const fieldFilters = this.normalizeFieldFilters(params);
-    const referenceDate = params.rangeEnd ?? dayEnd;
+    const referenceDate = rangeEnd;
     const baseFilters: BaseFilters = {
       projetoId: params.projetoId,
       formVersionId: params.formVersionId,

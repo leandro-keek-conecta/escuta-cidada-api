@@ -16,6 +16,11 @@ import { FormResponseDoesNotExist } from "../../errors/FormResponseDoesNotExist"
 import { opinionsQuerySchema } from "../validators/opinionsValidator";
 import { rawListQuerySchema } from "../validators/rawListValidator";
 import { formResponseExistsQuerySchema } from "../validators/existsValidator";
+import { ListFormByProjectSeparatedForFormService } from "../../services/ListFormByProjectSeparatedForFormService";
+import {
+  listGroupedByProjectParamsSchema,
+  listGroupedByProjectQuerySchema,
+} from "../validators/listGroupedByProjectValidator";
 
 @injectable()
 export class FormResponseController {
@@ -27,6 +32,8 @@ export class FormResponseController {
     @inject(Types.ListFormResponsesRawService) private readonly listFormResponsesRawService!: ListFormResponsesRawService;
     @inject(Types.CheckFormResponseFieldExistsService)
     private readonly checkFormResponseFieldExistsService!: CheckFormResponseFieldExistsService;
+    @inject(Types.ListFormByProjectSeparatedForFormService)
+    private readonly listFormByProjectSeparatedForFormService!: ListFormByProjectSeparatedForFormService;
 
 
   async create(
@@ -133,6 +140,23 @@ export class FormResponseController {
       const data = await this.listFormResponsesRawService.execute(params);
       return reply.status(StatusCodes.OK).send({ data });
     } catch (error) {
+      return this.handleError(reply, error);
+    }
+  }
+
+  async listAllByProject(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try{
+      const { projectId } = listGroupedByProjectParamsSchema.parse(request.params);
+      const { formId } = listGroupedByProjectQuerySchema.parse(request.query);
+      const data = await this.listFormByProjectSeparatedForFormService.execute({
+        projectId,
+        formId,
+      });
+      return reply.status(StatusCodes.OK).send({ data });
+    }catch(error){
       return this.handleError(reply, error);
     }
   }

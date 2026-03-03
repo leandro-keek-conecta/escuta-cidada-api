@@ -62,6 +62,7 @@ import { CheckFormResponseFieldExistsService } from "@/modules/FormResponse/serv
 import { FormResponseController } from "@/modules/FormResponse/http/controller/formResponseController";
 import { FormResponseMetricsService } from "@/modules/FormResponse/services/FormResponseMetricsService";
 import { FormResponseMetricsController } from "@/modules/FormResponse/http/controller/formResponseMetricsController";
+import { ListFormByProjectSeparatedForFormService } from "@/modules/FormResponse/services/ListFormByProjectSeparatedForFormService";
 const container = new Container();
 
 container.bind<UserController>(Types.UserController).to(UserController);
@@ -119,6 +120,7 @@ container.bind<ListFormResponsesService>(Types.ListFormResponsesService).to(List
 container.bind<DeleteFormResponseService>(Types.DeleteFormResponseService).to(DeleteFormResponseService);
 container.bind<ListFormOpinionsService>(Types.ListFormOpinionsService).to(ListFormOpinionsService);
 container.bind<ListFormResponsesRawService>(Types.ListFormResponsesRawService).to(ListFormResponsesRawService);
+container.bind<ListFormByProjectSeparatedForFormService>(Types.ListFormByProjectSeparatedForFormService).to(ListFormByProjectSeparatedForFormService);
 container
   .bind<CheckFormResponseFieldExistsService>(
     Types.CheckFormResponseFieldExistsService

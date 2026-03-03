@@ -51,9 +51,11 @@ const Types = {
   CreateFormResponseService: Symbol("CreateFormResponseService"),
   UpdateFormResponseService: Symbol("UpdateFormResponseService"),
   ListFormResponsesService: Symbol("ListFormResponsesService"),
+  ListFormByProjectSeparatedForForm: Symbol("ListFormByProjectSeparatedForForm"), 
   DeleteFormResponseService: Symbol("DeleteFormResponseService"),
   ListFormOpinionsService: Symbol("ListFormOpinionsService"),
   ListFormResponsesRawService: Symbol("ListFormResponsesRawService"),
+  ListFormByProjectSeparatedForFormService: Symbol("ListFormByProjectSeparatedForFormService"),
   CheckFormResponseFieldExistsService: Symbol(
     "CheckFormResponseFieldExistsService"
   ),

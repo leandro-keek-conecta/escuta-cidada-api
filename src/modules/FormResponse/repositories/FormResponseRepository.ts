@@ -1,7 +1,11 @@
 import { injectable } from "inversify";
 import { FormResponse, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { IFormResponseRepository } from "./IFormResponseRepository";
+import {
+  FormResponseWithForm,
+  IFormResponseRepository,
+  ListFormResponsesByProjectInput,
+} from "./IFormResponseRepository";
 
 @injectable()
 export class FormResponseRepository implements IFormResponseRepository {
@@ -22,6 +26,38 @@ export class FormResponseRepository implements IFormResponseRepository {
   async listByForm(formId: number): Promise<FormResponse[]> {
     return prisma.formResponse.findMany({
       where: { formVersionId: formId },
+    });
+  }
+
+  async listByProjectId({
+    projectId,
+    formId,
+  }: ListFormResponsesByProjectInput): Promise<FormResponseWithForm[]> {
+    return prisma.formResponse.findMany({
+      where: {
+        projetoId: projectId,
+        ...(formId
+          ? {
+              formVersion: {
+                is: {
+                  formId,
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        fields: true,
+        formVersion: {
+          include: {
+            form: true,
+          },
+        },
+      },
+      orderBy: [
+        { formVersion: { form: { name: "asc" } } },
+        { createdAt: "desc" },
+      ],
     });
   }
 
