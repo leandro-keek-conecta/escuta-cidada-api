@@ -12,13 +12,24 @@ type ListFormByProjectSeparatedForFormInput = {
   formId?: number;
 };
 
+export type FlattenedGroupedFormResponse = {
+  id: number;
+  usuario_id: number | string | null;
+  horario: string | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+  completedAt: string | null;
+  createdAt: string | null;
+  [key: string]: unknown;
+};
+
 type ResponsesGroupedByForm = {
   formId: number;
   formName: string;
   formVersionIds: number[];
   totalResponses: number;
   latestResponseAt: string | null;
-  responses: FormResponseWithForm[];
+  responses: FlattenedGroupedFormResponse[];
 };
 
 export type GroupedResponsesByProjectResult = {
@@ -32,6 +43,54 @@ export type GroupedResponsesByProjectResult = {
 @injectable()
 export class ListFormByProjectSeparatedForFormService {
   @inject(Types.FormResponseRepository) private formResponseRepository !: IFormResponseRepository;
+
+  private normalizeFieldValue(
+    field: FormResponseWithForm["fields"][number]
+  ): unknown {
+    return (
+      field.value ??
+      field.valueJson ??
+      field.valueNumber ??
+      field.valueBool ??
+      (field.valueDate ? field.valueDate.toISOString() : null)
+    );
+  }
+
+  private flattenResponse(
+    response: FormResponseWithForm
+  ): FlattenedGroupedFormResponse {
+    const flattened: FlattenedGroupedFormResponse = {
+      id: response.id,
+      usuario_id: response.userId ?? null,
+      horario: null,
+      startedAt: response.startedAt ? response.startedAt.toISOString() : null,
+      submittedAt: response.submittedAt
+        ? response.submittedAt.toISOString()
+        : null,
+      completedAt: response.completedAt
+        ? response.completedAt.toISOString()
+        : null,
+      createdAt: response.createdAt ? response.createdAt.toISOString() : null,
+    };
+
+    for (const field of response.fields) {
+      flattened[field.fieldName] = this.normalizeFieldValue(field);
+    }
+
+    if (flattened.horario === null && typeof flattened.horario_opiniao === "string") {
+      flattened.horario = flattened.horario_opiniao;
+    }
+
+    if (flattened.horario === null) {
+      flattened.horario =
+        flattened.submittedAt ??
+        flattened.createdAt ??
+        flattened.startedAt ??
+        null;
+    }
+
+    return flattened;
+  }
 
   public async execute({
     projectId,
@@ -52,9 +111,10 @@ export class ListFormByProjectSeparatedForFormService {
           response.completedAt ??
           response.startedAt ??
           response.createdAt;
+        const flattenedResponse = this.flattenResponse(response);
 
         if (existingGroup) {
-          existingGroup.responses.push(response);
+          existingGroup.responses.push(flattenedResponse);
           existingGroup.totalResponses += 1;
           if (!existingGroup.formVersionIds.includes(response.formVersionId)) {
             existingGroup.formVersionIds.push(response.formVersionId);
@@ -76,7 +136,7 @@ export class ListFormByProjectSeparatedForFormService {
           formVersionIds: [response.formVersionId],
           totalResponses: 1,
           latestResponseAt: responseDate ? responseDate.toISOString() : null,
-          responses: [response],
+          responses: [flattenedResponse],
         });
       }
 

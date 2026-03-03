@@ -161,6 +161,23 @@ export class FormResponseController {
     }
   }
 
+  async groupedByProject(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    try{
+      const { projectId } = listGroupedByProjectParamsSchema.parse(request.params);
+      const { formId } = listGroupedByProjectQuerySchema.parse(request.query);
+      const data = await this.listFormByProjectSeparatedForFormService.execute({
+        projectId,
+        formId,
+      });
+      return reply.status(StatusCodes.OK).send(data);
+    }catch(error){
+      return this.handleError(reply, error);
+    }
+  }
+
   async exists(
     request: FastifyRequest,
     reply: FastifyReply

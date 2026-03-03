@@ -61,6 +61,10 @@ export class FormResponseRepository implements IFormResponseRepository {
     });
   }
 
+  async ListMetricsByProject( projectId:number): Promise<FormResponse[]> {
+      return prisma.formResponse.findMany()
+  }
+
   async update(
     id: number,
     data: Prisma.FormResponseUpdateInput

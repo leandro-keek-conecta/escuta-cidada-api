@@ -16,7 +16,7 @@ export async function routerFormResponse(app: FastifyInstance) {
   app.post("/create",controller.create.bind(controller));
   app.get("/list",{ preHandler: [AuthMiddleware.required] },controller.list.bind(controller));
   app.get("/list/:projectId",{ preHandler: [AuthMiddleware.required] },controller.listAllByProject.bind(controller));
-  app.get("/project/:projectId/grouped",{ preHandler: [AuthMiddleware.required] },controller.listAllByProject.bind(controller));
+  app.get("/project/:projectId/grouped",{ preHandler: [AuthMiddleware.required] },controller.groupedByProject.bind(controller));
   app.patch("/update/:id",{ preHandler: [AuthMiddleware.required] },controller.update.bind(controller));
   app.delete("/delete/:id",{ preHandler: [AuthMiddleware.required] },controller.delete.bind(controller));
   app.get("/opinions",{ preHandler: [AuthMiddleware.required] },controller.opinions.bind(controller));
