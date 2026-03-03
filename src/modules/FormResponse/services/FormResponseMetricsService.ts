@@ -196,6 +196,9 @@ const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
   sugestao: "Sugestão",
 };
 
+const ACCENTED_SQL_CHARS = "áàâãäåéèêëíìîïóòôõöúùûüçñ";
+const UNACCENTED_SQL_CHARS = "aaaaaaeeeeiiiiooooouuuucn";
+
 function canonicalizeThemeLabel(value: unknown) {
   const raw = String(value ?? "").trim();
   if (!raw) {
@@ -372,6 +375,16 @@ export class FormResponseMetricsService {
     return normalizeText(value) === "nao informado";
   }
 
+  private buildNormalizedValueSql(column: Prisma.Sql | ReturnType<typeof Prisma.raw>) {
+    return Prisma.sql`LOWER(
+      TRANSLATE(
+        BTRIM(COALESCE(${column}, '')),
+        ${ACCENTED_SQL_CHARS},
+        ${UNACCENTED_SQL_CHARS}
+      )
+    )`;
+  }
+
   private buildValueFilterSql(fieldAlias: string, values: string[]) {
     const knownValues: string[] = [];
     let includeUnknown = false;
@@ -391,12 +404,12 @@ export class FormResponseMetricsService {
       const normalizedValues = Array.from(
         new Set(
           knownValues
-            .map((value) => value.trim().toLowerCase())
+            .map((value) => normalizeText(value))
             .filter((value) => value.length > 0)
         )
       );
       conditions.push(
-        Prisma.sql`LOWER(BTRIM(COALESCE(${column}, ''))) IN (${Prisma.join(
+        Prisma.sql`${this.buildNormalizedValueSql(column)} IN (${Prisma.join(
           normalizedValues
         )})`
       );
@@ -603,6 +616,20 @@ export class FormResponseMetricsService {
   ): Prisma.FormResponseWhereInput {
     const and: Prisma.FormResponseWhereInput[] = [];
 
+    const getCanonicalValueVariants = (fieldName: string, value: string) => {
+      const variants = new Set<string>([value]);
+
+      if (fieldName === "opiniao") {
+        variants.add(canonicalizeThemeLabel(value));
+      }
+
+      if (fieldName === "tipo_opiniao") {
+        variants.add(canonicalizeOpinionTypeLabel(value));
+      }
+
+      return Array.from(variants).filter((item) => item.trim().length > 0);
+    };
+
     const addValueFilter = (fieldName: string, values?: string[]) => {
       if (!values?.length) {
         return;
@@ -621,7 +648,11 @@ export class FormResponseMetricsService {
       const or: Prisma.FormResponseFieldWhereInput[] = [];
       if (knownValues.length) {
         for (const value of knownValues) {
-          or.push({ value: { equals: value, mode: "insensitive" as const } });
+          for (const candidate of getCanonicalValueVariants(fieldName, value)) {
+            or.push({
+              value: { equals: candidate, mode: "insensitive" as const },
+            });
+          }
         }
       }
       if (includeUnknown) {

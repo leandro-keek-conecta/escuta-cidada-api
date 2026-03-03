@@ -359,3 +359,29 @@ test("buildFieldFilterWhere aplica equals insensitive em filtros de valor", () =
     ],
   });
 });
+
+test("buildFieldFilterWhere canoniza tema sem acento para filtrar valor acentuado", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const where = (service as any).buildFieldFilterWhere(
+    { temas: ["Educacao"] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  assert.deepEqual(where, {
+    AND: [
+      {
+        fields: {
+          some: {
+            fieldName: "opiniao",
+            OR: [
+              { value: { equals: "Educacao", mode: "insensitive" } },
+              { value: { equals: "Educação", mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+    ],
+  });
+});
