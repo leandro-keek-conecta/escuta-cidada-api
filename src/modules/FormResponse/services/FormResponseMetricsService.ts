@@ -187,7 +187,8 @@ const THEME_CANONICAL_BY_KEY: Record<string, string> = {
   infraestrutura: "Infraestrutura",
   mobilidade: "Mobilidade",
   "meio ambiente": "Meio ambiente",
-  outro: "Outro",
+  outro: "Outros",
+  outros: "Outros",
 };
 
 const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
@@ -327,12 +328,29 @@ export class FormResponseMetricsService {
   }
 
   private normalizeFieldFilters(params: FieldFilterInput): NormalizedFieldFilters {
+    const canonicalizeValues = (
+      values: string[] | undefined,
+      canonicalizer?: (value: unknown) => string
+    ) => {
+      if (!values?.length || !canonicalizer) {
+        return values;
+      }
+
+      return values.map((value) => canonicalizer(value));
+    };
+
     return {
-      temas: this.mergeFilterValues(params.temas, params.tema),
-      tipos: this.mergeFilterValues(
-        params.tipoOpiniao,
-        params.tipos,
-        params.tipo
+      temas: canonicalizeValues(
+        this.mergeFilterValues(params.temas, params.tema),
+        canonicalizeThemeLabel
+      ),
+      tipos: canonicalizeValues(
+        this.mergeFilterValues(
+          params.tipoOpiniao,
+          params.tipos,
+          params.tipo
+        ),
+        canonicalizeOpinionTypeLabel
       ),
       generos: this.mergeFilterValues(params.genero, params.generos),
       bairros: this.mergeFilterValues(params.bairro, params.bairros),
@@ -385,7 +403,31 @@ export class FormResponseMetricsService {
     )`;
   }
 
-  private buildValueFilterSql(fieldAlias: string, values: string[]) {
+  private getCanonicalValueVariants(fieldName: string, value: string) {
+    const variants = new Set<string>([value]);
+
+    if (fieldName === "opiniao") {
+      const canonical = canonicalizeThemeLabel(value);
+      variants.add(canonical);
+
+      if (normalizeText(canonical) === "outros") {
+        variants.add("Outro");
+        variants.add("Outros");
+      }
+    }
+
+    if (fieldName === "tipo_opiniao") {
+      variants.add(canonicalizeOpinionTypeLabel(value));
+    }
+
+    return Array.from(variants).filter((item) => item.trim().length > 0);
+  }
+
+  private buildValueFilterSql(
+    fieldAlias: string,
+    values: string[],
+    fieldName: string
+  ) {
     const knownValues: string[] = [];
     let includeUnknown = false;
 
@@ -404,6 +446,7 @@ export class FormResponseMetricsService {
       const normalizedValues = Array.from(
         new Set(
           knownValues
+            .flatMap((value) => this.getCanonicalValueVariants(fieldName, value))
             .map((value) => normalizeText(value))
             .filter((value) => value.length > 0)
         )
@@ -526,7 +569,7 @@ export class FormResponseMetricsService {
     const clauses: Prisma.Sql[] = [];
 
     if (filters.temas?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.temas);
+      const predicate = this.buildValueFilterSql("ff", filters.temas, "opiniao");
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "opiniao", predicate)
@@ -535,7 +578,11 @@ export class FormResponseMetricsService {
     }
 
     if (filters.tipos?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.tipos);
+      const predicate = this.buildValueFilterSql(
+        "ff",
+        filters.tipos,
+        "tipo_opiniao"
+      );
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "tipo_opiniao", predicate)
@@ -544,7 +591,7 @@ export class FormResponseMetricsService {
     }
 
     if (filters.generos?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.generos);
+      const predicate = this.buildValueFilterSql("ff", filters.generos, "genero");
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "genero", predicate)
@@ -553,7 +600,7 @@ export class FormResponseMetricsService {
     }
 
     if (filters.bairros?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.bairros);
+      const predicate = this.buildValueFilterSql("ff", filters.bairros, "bairro");
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "bairro", predicate)
@@ -562,7 +609,11 @@ export class FormResponseMetricsService {
     }
 
     if (filters.campanhas?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.campanhas);
+      const predicate = this.buildValueFilterSql(
+        "ff",
+        filters.campanhas,
+        "campanha"
+      );
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "campanha", predicate)
@@ -616,20 +667,6 @@ export class FormResponseMetricsService {
   ): Prisma.FormResponseWhereInput {
     const and: Prisma.FormResponseWhereInput[] = [];
 
-    const getCanonicalValueVariants = (fieldName: string, value: string) => {
-      const variants = new Set<string>([value]);
-
-      if (fieldName === "opiniao") {
-        variants.add(canonicalizeThemeLabel(value));
-      }
-
-      if (fieldName === "tipo_opiniao") {
-        variants.add(canonicalizeOpinionTypeLabel(value));
-      }
-
-      return Array.from(variants).filter((item) => item.trim().length > 0);
-    };
-
     const addValueFilter = (fieldName: string, values?: string[]) => {
       if (!values?.length) {
         return;
@@ -648,7 +685,7 @@ export class FormResponseMetricsService {
       const or: Prisma.FormResponseFieldWhereInput[] = [];
       if (knownValues.length) {
         for (const value of knownValues) {
-          for (const candidate of getCanonicalValueVariants(fieldName, value)) {
+          for (const candidate of this.getCanonicalValueVariants(fieldName, value)) {
             or.push({
               value: { equals: candidate, mode: "insensitive" as const },
             });

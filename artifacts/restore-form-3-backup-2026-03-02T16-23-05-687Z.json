@@ -1,0 +1,30 @@
+{
+  "id": 3,
+  "name": "Título do Formulário",
+  "description": "",
+  "projetoId": 5,
+  "createdAt": "2026-01-26T18:39:33.724Z",
+  "updatedAt": "2026-03-02T14:44:24.712Z",
+  "versions": [
+    {
+      "id": 5,
+      "formId": 3,
+      "version": 1,
+      "schema": {
+        "blocks": [],
+        "styles": {
+          "titleColor": "#0f172a",
+          "buttonTextColor": "#ffffff",
+          "formBorderColor": "#dbe4ef",
+          "descriptionColor": "#475569",
+          "formBackgroundColor": "#f8fafc",
+          "inputBackgroundColor": "#ffffff",
+          "buttonBackgroundColor": "#5070dd"
+        }
+      },
+      "isActive": true,
+      "createdAt": "2026-01-26T18:39:33.724Z",
+      "fields": []
+    }
+  ]
+}

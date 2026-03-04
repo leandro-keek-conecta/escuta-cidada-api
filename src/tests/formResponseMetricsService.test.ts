@@ -266,6 +266,38 @@ test("report unifica temas e tipos de opiniao por normalizacao", async () => {
   });
 });
 
+test("report unifica Outro e Outros em topTemas como Outros", async () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  (service as any).statusFunnel = async () => [];
+  (service as any).timeSeries = async () => [];
+  (service as any).distribution = async (params: { fieldName: string }) => {
+    if (params.fieldName === "opiniao") {
+      return [
+        { value: "Outro", count: 2 },
+        { value: "Outros", count: 3 },
+      ];
+    }
+    if (params.fieldName === "ano_nascimento") {
+      return [];
+    }
+    return [];
+  };
+
+  const result = await service.report({
+    projetoId: 1,
+    dateField: "createdAt",
+    limitTopThemes: 10,
+    limitTopNeighborhoods: 10,
+    limitDistribution: 50,
+  });
+
+  assert.deepEqual(result.topTemas, [
+    { id: 1, tema: "Outros", total: 5 },
+  ]);
+});
+
 test("summary trata day em formato YYYY-MM-DD como data de calendario local", async () => {
   let countWhere: any;
   const distributionCalls: Array<{ fieldName: string; start?: Date; end?: Date }> =
@@ -378,6 +410,32 @@ test("buildFieldFilterWhere canoniza tema sem acento para filtrar valor acentuad
             OR: [
               { value: { equals: "Educacao", mode: "insensitive" } },
               { value: { equals: "Educação", mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+    ],
+  });
+});
+
+test("buildFieldFilterWhere unifica tema Outro e Outros como Outros", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const where = (service as any).buildFieldFilterWhere(
+    { temas: ["Outros"] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  assert.deepEqual(where, {
+    AND: [
+      {
+        fields: {
+          some: {
+            fieldName: "opiniao",
+            OR: [
+              { value: { equals: "Outros", mode: "insensitive" } },
+              { value: { equals: "Outro", mode: "insensitive" } },
             ],
           },
         },
