@@ -46,6 +46,12 @@ function toThemeKey(value: string) {
     .toLowerCase();
 }
 
+function canonicalizeTheme(value: string) {
+  return toThemeKey(value) === "outro" || toThemeKey(value) === "outros"
+    ? "Outros"
+    : value;
+}
+
 function isUnknownTheme(value: string) {
   return toThemeKey(value).trim() === "nao informado";
 }
@@ -62,6 +68,7 @@ function extractItemsFromOptions(options: unknown) {
 
   return items
     .map(normalizeThemeOption)
+    .map((item) => (item ? canonicalizeTheme(item) : item))
     .filter((item): item is string => item !== null);
 }
 
@@ -113,7 +120,7 @@ function mergeProjectThemes(
   }
 
   for (const row of responseThemes) {
-    const theme = String(row.tema ?? "").trim();
+    const theme = canonicalizeTheme(String(row.tema ?? "").trim());
     if (!theme || isUnknownTheme(theme)) {
       continue;
     }
@@ -277,11 +284,18 @@ class LoginService {
 
     const themesByProject = new Map<
       number,
-      Array<{ tema: string; total: number }>
+      Map<string, { tema: string; total: number }>
     >();
     for (const row of themeRows) {
-      const projectThemes = themesByProject.get(row.projetoId) ?? [];
-      projectThemes.push({ tema: row.tema, total: toNumber(row.total) });
+      const projectThemes = themesByProject.get(row.projetoId) ?? new Map();
+      const tema = canonicalizeTheme(row.tema);
+      const key = toThemeKey(tema);
+      const current = projectThemes.get(key);
+      if (current) {
+        current.total += toNumber(row.total);
+      } else {
+        projectThemes.set(key, { tema, total: toNumber(row.total) });
+      }
       themesByProject.set(row.projetoId, projectThemes);
     }
 
@@ -348,7 +362,7 @@ class LoginService {
           hiddenTabs: hiddenTabsByProject[projeto.projeto.id] ?? [],
           temasDoProjeto: mergeProjectThemes(
             projectThemesFromFormsByProject.get(projeto.projeto.id) ?? [],
-            themesByProject.get(projeto.projeto.id) ?? []
+            Array.from(themesByProject.get(projeto.projeto.id)?.values() ?? [])
           ),
           metrics: {
             responsesLast7Days: last7DaysByProject.get(projeto.projeto.id) ?? 0,
@@ -356,7 +370,9 @@ class LoginService {
               month,
               total: monthlyByProject.get(projeto.projeto.id)?.get(month) ?? 0,
             })),
-            responsesByTheme: themesByProject.get(projeto.projeto.id) ?? [],
+            responsesByTheme: Array.from(
+              themesByProject.get(projeto.projeto.id)?.values() ?? []
+            ),
           },
         })),
       },

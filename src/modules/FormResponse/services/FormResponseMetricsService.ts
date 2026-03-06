@@ -187,7 +187,8 @@ const THEME_CANONICAL_BY_KEY: Record<string, string> = {
   infraestrutura: "Infraestrutura",
   mobilidade: "Mobilidade",
   "meio ambiente": "Meio ambiente",
-  outro: "Outro",
+  outro: "Outros",
+  outros: "Outros",
 };
 
 const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
@@ -195,6 +196,9 @@ const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
   elogio: "Elogio",
   sugestao: "Sugestão",
 };
+
+const ACCENTED_SQL_CHARS = "áàâãäåéèêëíìîïóòôõöúùûüçñ";
+const UNACCENTED_SQL_CHARS = "aaaaaaeeeeiiiiooooouuuucn";
 
 function canonicalizeThemeLabel(value: unknown) {
   const raw = String(value ?? "").trim();
@@ -324,12 +328,29 @@ export class FormResponseMetricsService {
   }
 
   private normalizeFieldFilters(params: FieldFilterInput): NormalizedFieldFilters {
+    const canonicalizeValues = (
+      values: string[] | undefined,
+      canonicalizer?: (value: unknown) => string
+    ) => {
+      if (!values?.length || !canonicalizer) {
+        return values;
+      }
+
+      return values.map((value) => canonicalizer(value));
+    };
+
     return {
-      temas: this.mergeFilterValues(params.temas, params.tema),
-      tipos: this.mergeFilterValues(
-        params.tipoOpiniao,
-        params.tipos,
-        params.tipo
+      temas: canonicalizeValues(
+        this.mergeFilterValues(params.temas, params.tema),
+        canonicalizeThemeLabel
+      ),
+      tipos: canonicalizeValues(
+        this.mergeFilterValues(
+          params.tipoOpiniao,
+          params.tipos,
+          params.tipo
+        ),
+        canonicalizeOpinionTypeLabel
       ),
       generos: this.mergeFilterValues(params.genero, params.generos),
       bairros: this.mergeFilterValues(params.bairro, params.bairros),
@@ -350,11 +371,63 @@ export class FormResponseMetricsService {
     return params.end ?? params.dayEnd ?? params.monthEnd ?? new Date();
   }
 
+  private getCalendarDateParts(value: Date) {
+    return {
+      year: value.getUTCFullYear(),
+      month: value.getUTCMonth(),
+      day: value.getUTCDate(),
+    };
+  }
+
+  private toLocalCalendarDateStart(value: Date) {
+    const { year, month, day } = this.getCalendarDateParts(value);
+    return new Date(year, month, day, 0, 0, 0, 0);
+  }
+
+  private toLocalCalendarDateEnd(value: Date) {
+    const { year, month, day } = this.getCalendarDateParts(value);
+    return new Date(year, month, day, 23, 59, 59, 999);
+  }
+
   private isUnknownLabel(value: string) {
     return normalizeText(value) === "nao informado";
   }
 
-  private buildValueFilterSql(fieldAlias: string, values: string[]) {
+  private buildNormalizedValueSql(column: Prisma.Sql | ReturnType<typeof Prisma.raw>) {
+    return Prisma.sql`LOWER(
+      TRANSLATE(
+        BTRIM(COALESCE(${column}, '')),
+        ${ACCENTED_SQL_CHARS},
+        ${UNACCENTED_SQL_CHARS}
+      )
+    )`;
+  }
+
+  private getCanonicalValueVariants(fieldName: string, value: string) {
+    const variants = new Set<string>([value]);
+
+    if (fieldName === "opiniao") {
+      const canonical = canonicalizeThemeLabel(value);
+      variants.add(canonical);
+
+      if (normalizeText(canonical) === "outros") {
+        variants.add("Outro");
+        variants.add("Outros");
+      }
+    }
+
+    if (fieldName === "tipo_opiniao") {
+      variants.add(canonicalizeOpinionTypeLabel(value));
+    }
+
+    return Array.from(variants).filter((item) => item.trim().length > 0);
+  }
+
+  private buildValueFilterSql(
+    fieldAlias: string,
+    values: string[],
+    fieldName: string
+  ) {
     const knownValues: string[] = [];
     let includeUnknown = false;
 
@@ -373,12 +446,13 @@ export class FormResponseMetricsService {
       const normalizedValues = Array.from(
         new Set(
           knownValues
-            .map((value) => value.trim().toLowerCase())
+            .flatMap((value) => this.getCanonicalValueVariants(fieldName, value))
+            .map((value) => normalizeText(value))
             .filter((value) => value.length > 0)
         )
       );
       conditions.push(
-        Prisma.sql`LOWER(BTRIM(COALESCE(${column}, ''))) IN (${Prisma.join(
+        Prisma.sql`${this.buildNormalizedValueSql(column)} IN (${Prisma.join(
           normalizedValues
         )})`
       );
@@ -495,7 +569,7 @@ export class FormResponseMetricsService {
     const clauses: Prisma.Sql[] = [];
 
     if (filters.temas?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.temas);
+      const predicate = this.buildValueFilterSql("ff", filters.temas, "opiniao");
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "opiniao", predicate)
@@ -504,7 +578,11 @@ export class FormResponseMetricsService {
     }
 
     if (filters.tipos?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.tipos);
+      const predicate = this.buildValueFilterSql(
+        "ff",
+        filters.tipos,
+        "tipo_opiniao"
+      );
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "tipo_opiniao", predicate)
@@ -513,7 +591,7 @@ export class FormResponseMetricsService {
     }
 
     if (filters.generos?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.generos);
+      const predicate = this.buildValueFilterSql("ff", filters.generos, "genero");
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "genero", predicate)
@@ -522,7 +600,7 @@ export class FormResponseMetricsService {
     }
 
     if (filters.bairros?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.bairros);
+      const predicate = this.buildValueFilterSql("ff", filters.bairros, "bairro");
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "bairro", predicate)
@@ -531,7 +609,11 @@ export class FormResponseMetricsService {
     }
 
     if (filters.campanhas?.length) {
-      const predicate = this.buildValueFilterSql("ff", filters.campanhas);
+      const predicate = this.buildValueFilterSql(
+        "ff",
+        filters.campanhas,
+        "campanha"
+      );
       if (predicate) {
         clauses.push(
           this.buildFieldExistsSql(responseAlias, "campanha", predicate)
@@ -603,7 +685,11 @@ export class FormResponseMetricsService {
       const or: Prisma.FormResponseFieldWhereInput[] = [];
       if (knownValues.length) {
         for (const value of knownValues) {
-          or.push({ value: { equals: value, mode: "insensitive" as const } });
+          for (const candidate of this.getCanonicalValueVariants(fieldName, value)) {
+            or.push({
+              value: { equals: candidate, mode: "insensitive" as const },
+            });
+          }
         }
       }
       if (includeUnknown) {
@@ -1791,22 +1877,23 @@ export class FormResponseMetricsService {
 
   async summary(params: SummaryParams) {
     const referenceDay = params.day ?? new Date();
-    const dayStart = new Date(referenceDay);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(referenceDay);
-    dayEnd.setHours(23, 59, 59, 999);
+    const dayStart = this.toLocalCalendarDateStart(referenceDay);
+    const dayEnd = this.toLocalCalendarDateEnd(referenceDay);
 
-    const rangeEnd = params.rangeEnd ?? dayEnd;
+    const rangeEnd = params.rangeEnd
+      ? this.toLocalCalendarDateEnd(params.rangeEnd)
+      : dayEnd;
     const rangeStart =
-      params.rangeStart ??
-      new Date(
-        rangeEnd.getFullYear() - 1,
-        rangeEnd.getMonth(),
-        rangeEnd.getDate()
-      );
+      params.rangeStart
+        ? this.toLocalCalendarDateStart(params.rangeStart)
+        : new Date(
+            rangeEnd.getFullYear() - 1,
+            rangeEnd.getMonth(),
+            rangeEnd.getDate()
+          );
 
     const fieldFilters = this.normalizeFieldFilters(params);
-    const referenceDate = params.rangeEnd ?? dayEnd;
+    const referenceDate = rangeEnd;
     const baseFilters: BaseFilters = {
       projetoId: params.projetoId,
       formVersionId: params.formVersionId,

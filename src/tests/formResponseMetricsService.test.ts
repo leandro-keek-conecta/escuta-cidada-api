@@ -266,6 +266,109 @@ test("report unifica temas e tipos de opiniao por normalizacao", async () => {
   });
 });
 
+test("report unifica Outro e Outros em topTemas como Outros", async () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  (service as any).statusFunnel = async () => [];
+  (service as any).timeSeries = async () => [];
+  (service as any).distribution = async (params: { fieldName: string }) => {
+    if (params.fieldName === "opiniao") {
+      return [
+        { value: "Outro", count: 2 },
+        { value: "Outros", count: 3 },
+      ];
+    }
+    if (params.fieldName === "ano_nascimento") {
+      return [];
+    }
+    return [];
+  };
+
+  const result = await service.report({
+    projetoId: 1,
+    dateField: "createdAt",
+    limitTopThemes: 10,
+    limitTopNeighborhoods: 10,
+    limitDistribution: 50,
+  });
+
+  assert.deepEqual(result.topTemas, [
+    { id: 1, tema: "Outros", total: 5 },
+  ]);
+});
+
+test("summary trata day em formato YYYY-MM-DD como data de calendario local", async () => {
+  let countWhere: any;
+  const distributionCalls: Array<{ fieldName: string; start?: Date; end?: Date }> =
+    [];
+
+  const client = {
+    formResponse: {
+      count: async ({ where }: { where: unknown }) => {
+        countWhere = where;
+        return 0;
+      },
+    },
+  };
+
+  const service = new FormResponseMetricsService();
+  service.setClient(client as any);
+  (service as any).distribution = async (params: {
+    fieldName: string;
+    start?: Date;
+    end?: Date;
+  }) => {
+    distributionCalls.push(params);
+    return [];
+  };
+
+  const result = await service.summary({
+    projetoId: 5,
+    day: new Date("2026-03-03"),
+    limitTopThemes: 5,
+    limitTopNeighborhoods: 5,
+  });
+
+  const expectedDayStart = new Date(2026, 2, 3, 0, 0, 0, 0);
+  const expectedDayEnd = new Date(2026, 2, 3, 23, 59, 59, 999);
+  const expectedRangeStart = new Date(2025, 2, 3, 0, 0, 0, 0);
+
+  assert.deepEqual(result.day, {
+    start: expectedDayStart.toISOString(),
+    end: expectedDayEnd.toISOString(),
+  });
+  assert.deepEqual(result.range, {
+    start: expectedRangeStart.toISOString(),
+    end: expectedDayEnd.toISOString(),
+  });
+  assert.equal(
+    countWhere.createdAt.gte.toISOString(),
+    expectedDayStart.toISOString()
+  );
+  assert.equal(
+    countWhere.createdAt.lte.toISOString(),
+    expectedDayEnd.toISOString()
+  );
+  assert.equal(distributionCalls.length, 2);
+  assert.equal(
+    distributionCalls[0].start?.toISOString(),
+    expectedRangeStart.toISOString()
+  );
+  assert.equal(
+    distributionCalls[0].end?.toISOString(),
+    expectedDayEnd.toISOString()
+  );
+  assert.equal(
+    distributionCalls[1].start?.toISOString(),
+    expectedRangeStart.toISOString()
+  );
+  assert.equal(
+    distributionCalls[1].end?.toISOString(),
+    expectedDayEnd.toISOString()
+  );
+});
+
 test("buildFieldFilterWhere aplica equals insensitive em filtros de valor", () => {
   const service = new FormResponseMetricsService();
   service.setClient({} as any);
@@ -282,6 +385,58 @@ test("buildFieldFilterWhere aplica equals insensitive em filtros de valor", () =
           some: {
             fieldName: "bairro",
             OR: [{ value: { equals: "mangabeira", mode: "insensitive" } }],
+          },
+        },
+      },
+    ],
+  });
+});
+
+test("buildFieldFilterWhere canoniza tema sem acento para filtrar valor acentuado", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const where = (service as any).buildFieldFilterWhere(
+    { temas: ["Educacao"] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  assert.deepEqual(where, {
+    AND: [
+      {
+        fields: {
+          some: {
+            fieldName: "opiniao",
+            OR: [
+              { value: { equals: "Educacao", mode: "insensitive" } },
+              { value: { equals: "Educação", mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+    ],
+  });
+});
+
+test("buildFieldFilterWhere unifica tema Outro e Outros como Outros", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const where = (service as any).buildFieldFilterWhere(
+    { temas: ["Outros"] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  assert.deepEqual(where, {
+    AND: [
+      {
+        fields: {
+          some: {
+            fieldName: "opiniao",
+            OR: [
+              { value: { equals: "Outros", mode: "insensitive" } },
+              { value: { equals: "Outro", mode: "insensitive" } },
+            ],
           },
         },
       },

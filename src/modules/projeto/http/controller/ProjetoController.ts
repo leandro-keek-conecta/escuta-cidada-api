@@ -88,6 +88,41 @@ export class ProjetoController {
     }
   }
 
+  async listByProjetoId(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<FastifyReply> {
+    const listProjetosService = AppContainer.resolve<ListProjetosService>(ListProjetosService);
+    const { id } = request.params as { id?: string };
+    const projetoId = Number(id);
+
+    if (!id || Number.isNaN(projetoId)) {
+      return reply.status(400).send({ message: "Invalid projeto id" });
+    }
+
+    try {
+      const projetos = await listProjetosService.execute();
+      const projeto = projetos.find((item) => item.id === projetoId);
+
+      if (!projeto) {
+        return reply.status(404).send({ message: "Projeto does not exist" });
+      }
+
+      return reply.status(200).send({
+        message: "Successfully listed projeto by id",
+        data: [projeto],
+      });
+    } catch (err: any) {
+      console.error(
+        "Erro no controlador ao listar projeto por id:",
+        JSON.stringify(err, null, 2)
+      );
+      return reply.status(500).send({
+        message: "An error occurred while listing projeto by id",
+      });
+    }
+  }
+
   async getById(
     request: FastifyRequest,
     reply: FastifyReply
