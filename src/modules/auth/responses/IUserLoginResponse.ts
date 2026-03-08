@@ -14,6 +14,7 @@ type ProjetoResumo = {
   access: ProjetoAccessLevel;
   hiddenTabs: string[];
   temasDoProjeto: string[];
+  temasPermitidos: string[];
   metrics: {
     responsesLast7Days: number;
     responsesByMonthLast12Months: Array<{

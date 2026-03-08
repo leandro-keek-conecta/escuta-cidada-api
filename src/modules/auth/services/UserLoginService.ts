@@ -189,6 +189,15 @@ class LoginService {
       return acc;
     }, {});
 
+    const allowedThemesByProject = user.allowedThemes.reduce<
+      Record<number, string[]>
+    >((acc, theme) => {
+      const list = acc[theme.projetoId] ?? [];
+      list.push(theme.themeName);
+      acc[theme.projetoId] = list;
+      return acc;
+    }, {});
+
     const now = new Date();
     const monthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1, 0, 0, 0, 0)
@@ -364,6 +373,7 @@ class LoginService {
             projectThemesFromFormsByProject.get(projeto.projeto.id) ?? [],
             Array.from(themesByProject.get(projeto.projeto.id)?.values() ?? [])
           ),
+          temasPermitidos: allowedThemesByProject[projeto.projeto.id] ?? [],
           metrics: {
             responsesLast7Days: last7DaysByProject.get(projeto.projeto.id) ?? 0,
             responsesByMonthLast12Months: monthLabels.map((month) => ({

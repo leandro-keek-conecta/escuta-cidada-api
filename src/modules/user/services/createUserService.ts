@@ -56,6 +56,18 @@ export class CreateUserService {
               )
             )
         );
+
+        await Promise.all(
+          data.projetos
+            .filter((p) => Array.isArray(p.temasPermitidos))
+            .map((p) =>
+              this.userRepository.replaceAllowedThemes(
+                newUser.id,
+                p.id,
+                p.temasPermitidos ?? []
+              )
+            )
+        );
       }
 
       const hydrated = await this.userRepository.findById(newUser.id);

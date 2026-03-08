@@ -5,6 +5,7 @@ export type UserWithProjeto = Prisma.UserGetPayload<{
   include: {
     projetos: { include: { projeto: true } };
     hiddenScreens: true;
+    allowedThemes: true;
   }
 }>;
 export interface IUserRepository {
@@ -19,4 +20,7 @@ export interface IUserRepository {
   delete(id: number): Promise<void>;
   findProjectAccess(userId: number, projetoId: number): Promise<ProjetoAccessLevel | null>;
   replaceHiddenScreens(userId: number, projetoId: number, hiddenTabs: string[]): Promise<void>;
+  clearHiddenScreens(userId: number): Promise<void>;
+  replaceAllowedThemes(userId: number, projetoId: number, allowedThemes: string[]): Promise<void>;
+  clearAllowedThemes(userId: number): Promise<void>;
 }
