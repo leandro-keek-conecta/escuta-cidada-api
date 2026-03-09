@@ -11,6 +11,7 @@ export type UserWithProjetos = Prisma.UserGetPayload<{
       };
     };
     hiddenScreens: true;
+    allowedThemes: true;
   };
 }>;
 @injectable()
@@ -21,6 +22,7 @@ export class UserRepository implements IUserRepository {
       include: {
         projetos: { include: { projeto: true } },
         hiddenScreens: true,
+        allowedThemes: true,
       },
     });
   }
@@ -35,6 +37,7 @@ export class UserRepository implements IUserRepository {
       include: {
         projetos: { include: { projeto: true } },
         hiddenScreens: true,
+        allowedThemes: true,
       },
     });
   
@@ -46,6 +49,7 @@ export class UserRepository implements IUserRepository {
       include: {
         projetos: { include: { projeto: true } },
         hiddenScreens: true,
+        allowedThemes: true,
       },
     });
   }
@@ -58,6 +62,7 @@ export class UserRepository implements IUserRepository {
           include: { projeto: true },
         },
         hiddenScreens: true,
+        allowedThemes: true,
       },
     });
   }
@@ -67,6 +72,7 @@ export class UserRepository implements IUserRepository {
       include: {
         projetos: { include: { projeto: true } },
         hiddenScreens: true,
+        allowedThemes: true,
       },
     });
   }
@@ -110,6 +116,41 @@ export class UserRepository implements IUserRepository {
         screenName,
       })),
       skipDuplicates: true,
+    });
+  }
+
+  async clearHiddenScreens(userId: number): Promise<void> {
+    await prisma.dashHiddenScreen.deleteMany({
+      where: { userId },
+    });
+  }
+
+  async replaceAllowedThemes(
+    userId: number,
+    projetoId: number,
+    allowedThemes: string[]
+  ): Promise<void> {
+    await prisma.projetoUserAllowedTheme.deleteMany({
+      where: { userId, projetoId },
+    });
+
+    if (!allowedThemes.length) {
+      return;
+    }
+
+    await prisma.projetoUserAllowedTheme.createMany({
+      data: allowedThemes.map((themeName) => ({
+        userId,
+        projetoId,
+        themeName,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  async clearAllowedThemes(userId: number): Promise<void> {
+    await prisma.projetoUserAllowedTheme.deleteMany({
+      where: { userId },
     });
   }
 }

@@ -89,21 +89,32 @@ export class CreateFormResponseService {
           ? FormResponseStatus.COMPLETED
           : FormResponseStatus.STARTED);
       const now = new Date();
+      const referenceDate =
+        parsed.createdAt ??
+        parsed.submittedAt ??
+        parsed.completedAt ??
+        parsed.startedAt ??
+        now;
 
       const created = await this.formResponseRepository.create({
         projetoId: parsed.projetoId,
         formVersionId: parsed.formVersionId,
         userId: parsed.userId,
+        createdAt: parsed.createdAt ?? referenceDate,
         ip: parsed.ip,
         userAgent: parsed.userAgent,
         status: inferredStatus,
-        startedAt: parsed.startedAt ?? now,
+        startedAt: parsed.startedAt ?? referenceDate,
         completedAt:
           parsed.completedAt ??
-          (inferredStatus === FormResponseStatus.COMPLETED ? now : undefined),
+          (inferredStatus === FormResponseStatus.COMPLETED
+            ? referenceDate
+            : undefined),
         submittedAt:
           parsed.submittedAt ??
-          (inferredStatus === FormResponseStatus.COMPLETED ? now : undefined),
+          (inferredStatus === FormResponseStatus.COMPLETED
+            ? referenceDate
+            : undefined),
         source: parsed.source,
         channel: parsed.channel,
         utmSource: parsed.utmSource,

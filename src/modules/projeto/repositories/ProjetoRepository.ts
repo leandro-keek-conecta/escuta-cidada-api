@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { injectable } from "inversify";
 import {
   IProjetoRepository,
+  ProjetoListByUserWithRelations,
   ProjetoListWithRelations,
   ProjetoWithRelations,
 } from "./IProjetoRepository";
@@ -59,6 +60,23 @@ const listInclude = {
   hiddenScreens: true,
 } as const;
 
+function buildListByUserInclude(userId: number) {
+  return {
+    ...listInclude,
+    allowedThemes: {
+      where: { userId },
+      select: {
+        themeName: true,
+        projetoId: true,
+        userId: true,
+      },
+      orderBy: {
+        themeName: "asc" as const,
+      },
+    },
+  } as const;
+}
+
 @injectable()
 export class ProjetoRepository implements IProjetoRepository {
   async create(data: Prisma.ProjetoCreateInput): Promise<ProjetoWithRelations> {
@@ -92,7 +110,9 @@ export class ProjetoRepository implements IProjetoRepository {
     });
   }
 
-  async getProjetosByUserId(userId: number): Promise<ProjetoListWithRelations[]> {
+  async getProjetosByUserId(
+    userId: number
+  ): Promise<ProjetoListByUserWithRelations[]> {
     return await prisma.projeto.findMany({
       where: {
         users: {
@@ -101,7 +121,7 @@ export class ProjetoRepository implements IProjetoRepository {
           },
         },
       },
-      include: listInclude,
+      include: buildListByUserInclude(userId),
     });
   }
 

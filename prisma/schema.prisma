@@ -50,6 +50,7 @@ model User {
   tokens     PasswordResetToken[]
   responses  FormResponse[]
   hiddenScreens DashHiddenScreen[]
+  allowedThemes ProjetoUserAllowedTheme[]
 
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
@@ -72,6 +73,7 @@ model Projeto {
   forms       Form[]
   responses   FormResponse[]
   hiddenScreens DashHiddenScreen[]
+  allowedThemes ProjetoUserAllowedTheme[]
 
   // Configurações visuais (opcional)
   themeConfig Json?
@@ -145,6 +147,21 @@ model DashHiddenScreen {
   updatedAt  DateTime @updatedAt
 
   @@unique([userId, projetoId, screenName])
+}
+
+model ProjetoUserAllowedTheme {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  projetoId  Int
+  themeName  String
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projeto    Projeto  @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, projetoId, themeName])
 }
 
 // =======================================

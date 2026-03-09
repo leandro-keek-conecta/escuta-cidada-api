@@ -160,3 +160,50 @@ test("CreateFormResponseService persiste campos textarea dinamicos definidos na 
     )
   );
 });
+
+test("CreateFormResponseService usa a data historica informada para createdAt e datas derivadas", async () => {
+  const service = new CreateFormResponseService();
+  let capturedCreateInput: any;
+
+  (service as any).formVersionRepository = {
+    findByIdWithForm: async () => ({
+      id: 12,
+      formId: 5,
+      form: {
+        id: 5,
+        projetoId: 1,
+      },
+    }),
+  };
+  (service as any).formFieldRepository = {
+    findByFormVersionId: async () => [],
+  };
+  (service as any).formResponseRepository = {
+    create: async (data: any) => {
+      capturedCreateInput = data;
+      return data;
+    },
+  };
+
+  const createdAt = new Date("2025-04-23T15:48:22.000Z");
+
+  await service.execute({
+    data: {
+      formVersionId: 12,
+      projetoId: 1,
+      createdAt,
+      status: FormResponseStatus.COMPLETED,
+    },
+  });
+
+  assert.equal(capturedCreateInput.createdAt.toISOString(), createdAt.toISOString());
+  assert.equal(capturedCreateInput.startedAt.toISOString(), createdAt.toISOString());
+  assert.equal(
+    capturedCreateInput.submittedAt.toISOString(),
+    createdAt.toISOString()
+  );
+  assert.equal(
+    capturedCreateInput.completedAt.toISOString(),
+    createdAt.toISOString()
+  );
+});

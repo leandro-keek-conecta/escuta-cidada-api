@@ -5,6 +5,7 @@ export const createFormResponseSchema = Z.object({
   formVersionId: Z.number().int().positive(),
   projetoId: Z.number().int().positive(),
   userId: Z.number().int().positive().optional(),
+  createdAt: Z.coerce.date().optional(),
   ip: Z.string().optional(),
   userAgent: Z.string().optional(),
   status: Z.nativeEnum(FormResponseStatus).optional(),

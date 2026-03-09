@@ -53,6 +53,9 @@ export class UpdateUserService {
       const updated = await this.userRepository.updateUser(id, updateData);
 
       if (payload.projetos) {
+        await this.userRepository.clearHiddenScreens(id);
+        await this.userRepository.clearAllowedThemes(id);
+
         await Promise.all(
           payload.projetos
             .filter((p) => Array.isArray(p.hiddenTabs))
@@ -61,6 +64,18 @@ export class UpdateUserService {
                 id,
                 p.id,
                 p.hiddenTabs ?? []
+              )
+            )
+        );
+
+        await Promise.all(
+          payload.projetos
+            .filter((p) => Array.isArray(p.temasPermitidos))
+            .map((p) =>
+              this.userRepository.replaceAllowedThemes(
+                id,
+                p.id,
+                p.temasPermitidos ?? []
               )
             )
         );

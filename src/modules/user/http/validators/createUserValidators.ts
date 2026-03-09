@@ -10,7 +10,8 @@ export const userSchema = Z.object({
     Z.object({
       id: Z.number().int().positive("ID de projeto inválido"),
       access: Z.nativeEnum(ProjetoAccessLevel).optional(),
-      hiddenTabs: Z.array(Z.string().min(1)).optional(),
+      hiddenTabs: Z.array(Z.string().trim().min(1)).optional(),
+      temasPermitidos: Z.array(Z.string().trim().min(1)).optional(),
     })
   ).optional(),
 });

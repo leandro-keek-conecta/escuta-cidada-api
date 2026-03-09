@@ -63,6 +63,7 @@ import { FormResponseController } from "@/modules/FormResponse/http/controller/f
 import { FormResponseMetricsService } from "@/modules/FormResponse/services/FormResponseMetricsService";
 import { FormResponseMetricsController } from "@/modules/FormResponse/http/controller/formResponseMetricsController";
 import { ListFormByProjectSeparatedForFormService } from "@/modules/FormResponse/services/ListFormByProjectSeparatedForFormService";
+import { StorageService } from "@/modules/minio/services/storageService";
 const container = new Container();
 
 container.bind<UserController>(Types.UserController).to(UserController);
@@ -97,9 +98,7 @@ container.bind<DeleteFormService>(Types.DeleteFormService).to(DeleteFormService)
 container.bind<FormController>(Types.FormController).to(FormController);
 container.bind<PublicFormReadRepository>(Types.PublicFormReadRepository).to(PublicFormReadRepository);
 container.bind<PublicFormReadService>(Types.PublicFormReadService).to(PublicFormReadService);
-container
-  .bind<SubmitPublicFormResponseService>(Types.SubmitPublicFormResponseService)
-  .to(SubmitPublicFormResponseService);
+container.bind<SubmitPublicFormResponseService>(Types.SubmitPublicFormResponseService).to(SubmitPublicFormResponseService);
 container.bind<PublicFormController>(Types.PublicFormController).to(PublicFormController);
 container.bind<IFormFieldRepository>(Types.FormFieldRepository).to(FormFieldRepository);
 container.bind<CreateFormFieldService>(Types.CreateFormFieldService).to(CreateFormFieldService);
@@ -121,14 +120,10 @@ container.bind<DeleteFormResponseService>(Types.DeleteFormResponseService).to(De
 container.bind<ListFormOpinionsService>(Types.ListFormOpinionsService).to(ListFormOpinionsService);
 container.bind<ListFormResponsesRawService>(Types.ListFormResponsesRawService).to(ListFormResponsesRawService);
 container.bind<ListFormByProjectSeparatedForFormService>(Types.ListFormByProjectSeparatedForFormService).to(ListFormByProjectSeparatedForFormService);
-container
-  .bind<CheckFormResponseFieldExistsService>(
-    Types.CheckFormResponseFieldExistsService
-  )
-  .to(CheckFormResponseFieldExistsService);
+container.bind<CheckFormResponseFieldExistsService>(Types.CheckFormResponseFieldExistsService).to(CheckFormResponseFieldExistsService);
 container.bind<FormResponseController>(Types.FormResponseController).to(FormResponseController);
 container.bind<FormResponseMetricsService>(Types.FormResponseMetricsService).to(FormResponseMetricsService);
-container
-  .bind<FormResponseMetricsController>(Types.FormResponseMetricsController)
-  .to(FormResponseMetricsController);
+container.bind<FormResponseMetricsController>(Types.FormResponseMetricsController).to(FormResponseMetricsController);
+container.bind<StorageService>(Types.StorageService).to(StorageService)
+
 export default container;

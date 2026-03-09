@@ -16,7 +16,39 @@ export class ListUserService {
         throw new InternalServerError("No users found.");
       }
       // Remove o campo "password" de cada usuário
-      const safeUsers = users.map(({ password, ...rest }) => rest);
+      const safeUsers = users.map(
+        ({ password, projetos, hiddenScreens, allowedThemes, ...rest }) => {
+          const hiddenTabsByProject = hiddenScreens.reduce<Record<number, string[]>>(
+            (acc, screen) => {
+              const list = acc[screen.projetoId] ?? [];
+              list.push(screen.screenName);
+              acc[screen.projetoId] = list;
+              return acc;
+            },
+            {}
+          );
+
+          const allowedThemesByProject = allowedThemes.reduce<
+            Record<number, string[]>
+          >((acc, theme) => {
+            const list = acc[theme.projetoId] ?? [];
+            list.push(theme.themeName);
+            acc[theme.projetoId] = list;
+            return acc;
+          }, {});
+
+          return {
+            ...rest,
+            hiddenScreens,
+            allowedThemes,
+            projetos: projetos.map((projeto) => ({
+              ...projeto,
+              hiddenTabs: hiddenTabsByProject[projeto.projetoId] ?? [],
+              temasPermitidos: allowedThemesByProject[projeto.projetoId] ?? [],
+            })),
+          };
+        }
+      );
 
       return safeUsers;
     } catch (error: any) {

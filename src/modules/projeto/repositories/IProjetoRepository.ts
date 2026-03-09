@@ -36,6 +36,30 @@ export type ProjetoListWithRelations = Prisma.ProjetoGetPayload<{
   };
 }>;
 
+export type ProjetoListByUserWithRelations = Prisma.ProjetoGetPayload<{
+  include: {
+    users: { include: { user: { select: { id: true; email: true; name: true; profession: true; role: true; createdAt: true; updatedAt: true; } } } };
+    chats: true;
+    forms: {
+      include: {
+        versions: {
+          include: {
+            fields: true;
+          };
+        };
+      };
+    };
+    hiddenScreens: true;
+    allowedThemes: {
+      select: {
+        themeName: true;
+        projetoId: true;
+        userId: true;
+      };
+    };
+  };
+}>;
+
 export interface IProjetoRepository {
   create(data: Prisma.ProjetoCreateInput): Promise<ProjetoWithRelations>;
   updateProjeto(
@@ -44,6 +68,6 @@ export interface IProjetoRepository {
   ): Promise<ProjetoWithRelations>;
   findById(id: number): Promise<ProjetoWithRelations | null>;
   getProjetos(): Promise<ProjetoListWithRelations[]>;
-  getProjetosByUserId(userId: number): Promise<ProjetoListWithRelations[]>;
+  getProjetosByUserId(userId: number): Promise<ProjetoListByUserWithRelations[]>;
   delete(id: number): Promise<void>;
 }
