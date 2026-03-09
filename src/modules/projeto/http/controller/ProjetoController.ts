@@ -92,33 +92,29 @@ export class ProjetoController {
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<FastifyReply> {
-    const listProjetosService = AppContainer.resolve<ListProjetosService>(ListProjetosService);
+    const listProjetosByUserIdService =
+      AppContainer.resolve<ListProjetosByUseridService>(ListProjetosByUseridService);
     const { id } = request.params as { id?: string };
-    const projetoId = Number(id);
+    const userId = Number(id);
 
-    if (!id || Number.isNaN(projetoId)) {
-      return reply.status(400).send({ message: "Invalid projeto id" });
+    if (!id || Number.isNaN(userId)) {
+      return reply.status(400).send({ message: "Invalid user id" });
     }
 
     try {
-      const projetos = await listProjetosService.execute();
-      const projeto = projetos.find((item) => item.id === projetoId);
-
-      if (!projeto) {
-        return reply.status(404).send({ message: "Projeto does not exist" });
-      }
+      const projetos = await listProjetosByUserIdService.execute(userId);
 
       return reply.status(200).send({
-        message: "Successfully listed projeto by id",
-        data: [projeto],
+        message: "Successfully listed projetos by user",
+        data: projetos,
       });
     } catch (err: any) {
       console.error(
-        "Erro no controlador ao listar projeto por id:",
+        "Erro no controlador ao listar projetos por usuário:",
         JSON.stringify(err, null, 2)
       );
       return reply.status(500).send({
-        message: "An error occurred while listing projeto by id",
+        message: "An error occurred while listing projetos by user",
       });
     }
   }

@@ -185,6 +185,12 @@ export class ListProjetosByUseridService {
   public async execute(userId: number) {
     try {
       const projects = await this.ProjetoRepository.getProjetosByUserId(userId);
+      const allowedThemesByProject = (projects ?? []).reduce<
+        Record<number, string[]>
+      >((acc, project) => {
+        acc[project.id] = project.allowedThemes.map((theme) => theme.themeName);
+        return acc;
+      }, {});
       const now = new Date();
       const monthStart = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1, 0, 0, 0, 0)
@@ -288,13 +294,16 @@ export class ListProjetosByUseridService {
             })
             .filter((item): item is Exclude<typeof item, null> => item !== null) || [];
 
+        const { allowedThemes, ...safeProject } = project;
+
         return {
-          ...project,
+          ...safeProject,
           users: safeUsers,
           temasDoProjeto: mergeProjectThemes(
             extractProjectThemesFromForms(project.forms ?? []),
             Array.from(themesByProject.get(project.id)?.values() ?? [])
           ),
+          temasPermitidos: allowedThemesByProject[project.id] ?? [],
           metrics: {
             responsesLast7Days: last7DaysByProject.get(project.id) ?? 0,
             responsesByMonthLast12Months: monthLabels.map((month) => ({
