@@ -62,6 +62,7 @@ const Types = {
   FormResponseController: Symbol("FormResponseController"),
   FormResponseMetricsService: Symbol("FormResponseMetricsService"),
   FormResponseMetricsController: Symbol("FormResponseMetricsController"),
+  StorageService: Symbol("StorageService"),
 };
 
 export default Types;

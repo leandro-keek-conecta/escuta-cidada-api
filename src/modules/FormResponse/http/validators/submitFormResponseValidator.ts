@@ -3,6 +3,7 @@ import { FormResponseStatus } from "@prisma/client";
 
 export const submitFormResponseSchema = Z.object({
   formVersionId: Z.number().int().positive().optional(),
+  createdAt: Z.coerce.date().optional(),
   status: Z.nativeEnum(FormResponseStatus).optional(),
   startedAt: Z.coerce.date().optional(),
   completedAt: Z.coerce.date().optional(),

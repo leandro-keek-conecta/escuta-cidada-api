@@ -45,6 +45,7 @@ export class SubmitPublicFormResponseService {
       data: {
         formVersionId: publicForm.activeVersion.id,
         projetoId: publicForm.projeto.id,
+        createdAt: data.createdAt,
         status: data.status,
         startedAt: data.startedAt,
         completedAt: data.completedAt,
