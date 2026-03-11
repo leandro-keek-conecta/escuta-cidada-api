@@ -298,6 +298,43 @@ test("report unifica Outro e Outros em topTemas como Outros", async () => {
   ]);
 });
 
+test("report usa aliases alternativos para tipo de opiniao e ano de nascimento", async () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  (service as any).statusFunnel = async () => [];
+  (service as any).timeSeries = async () => [];
+  (service as any).distribution = async (params: { fieldName: string }) => {
+    if (params.fieldName === "tipo_de_opiniao") {
+      return [{ value: "Elogio", count: 2 }];
+    }
+    if (params.fieldName === "ano_de_nascimento") {
+      return [{ value: "1999", count: 2 }];
+    }
+    return [];
+  };
+
+  const result = await service.report({
+    projetoId: 1,
+    dateField: "createdAt",
+    limitTopThemes: 10,
+    limitTopNeighborhoods: 10,
+    limitDistribution: 50,
+  });
+
+  assert.deepEqual(result.cards, {
+    totalOpinions: 2,
+    totalComplaints: 0,
+    totalPraise: 2,
+    totalSuggestions: 0,
+  });
+  assert.deepEqual(result.tipoOpiniao, [{ label: "Elogio", value: 2 }]);
+  assert.deepEqual(
+    result.opinionsByAge.find((item) => item.label === "26-35"),
+    { label: "26-35", value: 2 }
+  );
+});
+
 test("summary trata day em formato YYYY-MM-DD como data de calendario local", async () => {
   let countWhere: any;
   const distributionCalls: Array<{ fieldName: string; start?: Date; end?: Date }> =
@@ -325,14 +362,14 @@ test("summary trata day em formato YYYY-MM-DD como data de calendario local", as
 
   const result = await service.summary({
     projetoId: 5,
-    day: new Date("2026-03-03"),
+    day: "2026-03-03",
     limitTopThemes: 5,
     limitTopNeighborhoods: 5,
   });
 
-  const expectedDayStart = new Date(2026, 2, 3, 0, 0, 0, 0);
-  const expectedDayEnd = new Date(2026, 2, 3, 23, 59, 59, 999);
-  const expectedRangeStart = new Date(2025, 2, 3, 0, 0, 0, 0);
+  const expectedDayStart = new Date("2026-03-03T03:00:00.000Z");
+  const expectedDayEnd = new Date("2026-03-04T02:59:59.999Z");
+  const expectedRangeStart = new Date("2025-03-03T03:00:00.000Z");
 
   assert.deepEqual(result.day, {
     start: expectedDayStart.toISOString(),

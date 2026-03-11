@@ -1,5 +1,14 @@
 import { FormResponseStatus, Prisma } from "@prisma/client";
 import { injectable } from "inversify";
+import {
+  DateInput,
+  PROJECT_TIME_ZONE,
+  getProjectCurrentDateReference,
+  getProjectCurrentMonthBounds,
+  getProjectDateKey,
+  getProjectDayBounds,
+  normalizeDateRangeBoundary,
+} from "@/common/utils/projectTimeZone";
 import { prisma } from "@/lib/prisma";
 
 const shouldLog = process.env.NODE_ENV !== "production";
@@ -47,8 +56,8 @@ type BaseFilters = {
   formId?: number;
   formIds?: number[];
   status?: FormResponseStatus;
-  start?: Date;
-  end?: Date;
+  start?: DateInput;
+  end?: DateInput;
 } & FieldFilterInput;
 
 type TimeSeriesParams = BaseFilters & {
@@ -71,10 +80,10 @@ type FunnelParams = BaseFilters;
 
 type ReportParams = BaseFilters & {
   dateField: MetricsDateField;
-  monthStart?: Date;
-  monthEnd?: Date;
-  dayStart?: Date;
-  dayEnd?: Date;
+  monthStart?: DateInput;
+  monthEnd?: DateInput;
+  dayStart?: DateInput;
+  dayEnd?: DateInput;
   limitTopThemes: number;
   limitTopNeighborhoods: number;
   limitDistribution: number;
@@ -82,10 +91,10 @@ type ReportParams = BaseFilters & {
 
 type ProjectReportParams = BaseFilters & {
   dateField: MetricsDateField;
-  monthStart?: Date;
-  monthEnd?: Date;
-  dayStart?: Date;
-  dayEnd?: Date;
+  monthStart?: DateInput;
+  monthEnd?: DateInput;
+  dayStart?: DateInput;
+  dayEnd?: DateInput;
   limitTopForms: number;
 };
 
@@ -95,9 +104,9 @@ type FormFiltersParams = BaseFilters & {
 };
 
 type SummaryParams = BaseFilters & {
-  day?: Date;
-  rangeStart?: Date;
-  rangeEnd?: Date;
+  day?: DateInput;
+  rangeStart?: DateInput;
+  rangeEnd?: DateInput;
   limitTopThemes: number;
   limitTopNeighborhoods: number;
 };
@@ -199,6 +208,24 @@ const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
 
 const ACCENTED_SQL_CHARS = "áàâãäåéèêëíìîïóòôõöúùûüçñ";
 const UNACCENTED_SQL_CHARS = "aaaaaaeeeeiiiiooooouuuucn";
+
+const OPINION_TYPE_FIELD_CANDIDATES = [
+  "tipo_opiniao",
+  "tipo_de_opiniao",
+  "tipoopiniao",
+  "tipodeopiniao",
+  "tipo_da_opiniao",
+  "classificacao_opiniao",
+] as const;
+
+const BIRTH_YEAR_FIELD_CANDIDATES = [
+  "ano_nascimento",
+  "ano_de_nascimento",
+  "ano",
+  "anonascimento",
+  "anodenascimento",
+  "nascimento",
+] as const;
 
 function canonicalizeThemeLabel(value: unknown) {
   const raw = String(value ?? "").trim();
@@ -364,33 +391,128 @@ export class FormResponseMetricsService {
   }
 
   private getReferenceDate(params: {
-    end?: Date;
-    dayEnd?: Date;
-    monthEnd?: Date;
+    end?: DateInput;
+    dayEnd?: DateInput;
+    monthEnd?: DateInput;
   }) {
-    return params.end ?? params.dayEnd ?? params.monthEnd ?? new Date();
+    if (params.end) {
+      return normalizeDateRangeBoundary(params.end, "end")!;
+    }
+    if (params.dayEnd) {
+      return this.toProjectCalendarDateEnd(params.dayEnd);
+    }
+    if (params.monthEnd) {
+      return this.toProjectCalendarDateEnd(params.monthEnd);
+    }
+    return this.getProjectCurrentDateReference();
   }
 
-  private getCalendarDateParts(value: Date) {
+  private normalizeBaseFilters<T extends BaseFilters>(params: T) {
     return {
-      year: value.getUTCFullYear(),
-      month: value.getUTCMonth(),
-      day: value.getUTCDate(),
+      ...params,
+      start: normalizeDateRangeBoundary(params.start, "start"),
+      end: normalizeDateRangeBoundary(params.end, "end"),
     };
   }
 
-  private toLocalCalendarDateStart(value: Date) {
-    const { year, month, day } = this.getCalendarDateParts(value);
-    return new Date(year, month, day, 0, 0, 0, 0);
+  private toProjectCalendarDateStart(value: DateInput) {
+    return getProjectDayBounds(value).start;
   }
 
-  private toLocalCalendarDateEnd(value: Date) {
-    const { year, month, day } = this.getCalendarDateParts(value);
-    return new Date(year, month, day, 23, 59, 59, 999);
+  private toProjectCalendarDateEnd(value: DateInput) {
+    return getProjectDayBounds(value).end;
+  }
+
+  private getProjectCurrentDateReference() {
+    return getProjectCurrentDateReference();
+  }
+
+  private getProjectCurrentMonthBounds() {
+    return getProjectCurrentMonthBounds();
+  }
+
+  private getProjectDateKey(value: Date) {
+    return getProjectDateKey(value);
+  }
+
+  private getBucketSql(
+    interval: MetricsInterval,
+    dateColumn: Prisma.Sql | ReturnType<typeof Prisma.raw>
+  ) {
+    return Prisma.sql`
+      date_trunc(
+        ${interval},
+        timezone(${PROJECT_TIME_ZONE}, ${dateColumn} AT TIME ZONE 'UTC')
+      ) AT TIME ZONE ${PROJECT_TIME_ZONE}
+    `;
   }
 
   private isUnknownLabel(value: string) {
     return normalizeText(value) === "nao informado";
+  }
+
+  private getFieldNameCandidates(fieldName: string) {
+    if (fieldName === "tipo_opiniao") {
+      return Array.from(OPINION_TYPE_FIELD_CANDIDATES);
+    }
+
+    if (fieldName === "ano_nascimento") {
+      return Array.from(BIRTH_YEAR_FIELD_CANDIDATES);
+    }
+
+    return [fieldName];
+  }
+
+  private isOpinionTypeField(fieldName: string) {
+    return this.getFieldNameCandidates("tipo_opiniao").includes(fieldName);
+  }
+
+  private getFieldNameWhereCondition(fieldName: string) {
+    const candidates = this.getFieldNameCandidates(fieldName);
+    return candidates.length === 1 ? candidates[0] : { in: candidates };
+  }
+
+  private mergeDistributionRows(...groups: DistributionRow[][]) {
+    const grouped = new Map<string, { value: unknown; count: number }>();
+
+    for (const rows of groups) {
+      for (const row of rows) {
+        const key =
+          row.value instanceof Date
+            ? row.value.toISOString()
+            : JSON.stringify(row.value);
+        const current = grouped.get(key);
+        const count = normalizeCount(row.count);
+
+        if (current) {
+          current.count += count;
+          continue;
+        }
+
+        grouped.set(key, { value: row.value, count });
+      }
+    }
+
+    return Array.from(grouped.values()).map((row) => ({
+      value: row.value,
+      count: row.count,
+    }));
+  }
+
+  private async distributionByFieldAliases(
+    params: Omit<DistributionParams, "fieldName"> & { fieldNames: string[] }
+  ) {
+    const candidates = Array.from(new Set(params.fieldNames));
+    const rows = await Promise.all(
+      candidates.map((fieldName) =>
+        this.distribution({
+          ...params,
+          fieldName,
+        })
+      )
+    );
+
+    return this.mergeDistributionRows(...rows);
   }
 
   private buildNormalizedValueSql(column: Prisma.Sql | ReturnType<typeof Prisma.raw>) {
@@ -416,7 +538,7 @@ export class FormResponseMetricsService {
       }
     }
 
-    if (fieldName === "tipo_opiniao") {
+    if (this.isOpinionTypeField(fieldName)) {
       variants.add(canonicalizeOpinionTypeLabel(value));
     }
 
@@ -547,16 +669,21 @@ export class FormResponseMetricsService {
 
   private buildFieldExistsSql(
     responseAlias: string,
-    fieldName: string,
+    fieldName: string | string[],
     predicate: Prisma.Sql
   ) {
     const responseId = Prisma.raw(`${responseAlias}."id"`);
+    const fieldNames = Array.isArray(fieldName) ? fieldName : [fieldName];
+    const fieldNamePredicate =
+      fieldNames.length === 1
+        ? Prisma.sql`ff."fieldName" = ${fieldNames[0]}`
+        : Prisma.sql`ff."fieldName" IN (${Prisma.join(fieldNames)})`;
 
     return Prisma.sql`EXISTS (
       SELECT 1
       FROM "FormResponseField" ff
       WHERE ff."responseId" = ${responseId}
-        AND ff."fieldName" = ${fieldName}
+        AND ${fieldNamePredicate}
         AND (${predicate})
     )`;
   }
@@ -585,7 +712,11 @@ export class FormResponseMetricsService {
       );
       if (predicate) {
         clauses.push(
-          this.buildFieldExistsSql(responseAlias, "tipo_opiniao", predicate)
+          this.buildFieldExistsSql(
+            responseAlias,
+            this.getFieldNameCandidates("tipo_opiniao"),
+            predicate
+          )
         );
       }
     }
@@ -651,7 +782,7 @@ export class FormResponseMetricsService {
         clauses.push(
           this.buildFieldExistsSql(
             responseAlias,
-            "ano_nascimento",
+            this.getFieldNameCandidates("ano_nascimento"),
             Prisma.join(conditions, " OR ")
           )
         );
@@ -703,7 +834,7 @@ export class FormResponseMetricsService {
       and.push({
         fields: {
           some: {
-            fieldName,
+            fieldName: this.getFieldNameWhereCondition(fieldName),
             OR: or,
           },
         },
@@ -756,7 +887,7 @@ export class FormResponseMetricsService {
         and.push({
           fields: {
             some: {
-              fieldName: "ano_nascimento",
+              fieldName: this.getFieldNameWhereCondition("ano_nascimento"),
               OR: or,
             },
           },
@@ -768,32 +899,37 @@ export class FormResponseMetricsService {
   }
 
   async timeSeries(params: TimeSeriesParams) {
-    const interval = Prisma.sql`${params.interval}`;
+    const normalizedParams = this.normalizeBaseFilters(params);
+    const interval = Prisma.sql`${normalizedParams.interval}`;
     const responseAlias = "r";
-    const dateColumn = getDateColumn(params.dateField, responseAlias);
-    const fieldFilters = this.normalizeFieldFilters(params);
-    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
-    const referenceDate = this.getReferenceDate(params);
+    const dateColumn = getDateColumn(normalizedParams.dateField, responseAlias);
+    const bucketColumn = this.getBucketSql(normalizedParams.interval, dateColumn);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
+    const referenceDate = this.getReferenceDate(normalizedParams);
 
     const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
-    if (params.projetoId) {
+    if (normalizedParams.projetoId) {
       whereParts.push(
         Prisma.sql`${Prisma.raw(`${responseAlias}."projetoId"`)} = ${
-          params.projetoId
+          normalizedParams.projetoId
         }`
       );
     }
     const projectFormScopeSql = this.buildProjectFormScopeSql(
       responseAlias,
-      params.projetoId
+      normalizedParams.projetoId
     );
     if (projectFormScopeSql) {
       whereParts.push(projectFormScopeSql);
     }
-    if (params.formVersionId) {
+    if (normalizedParams.formVersionId) {
       whereParts.push(
         Prisma.sql`${Prisma.raw(`${responseAlias}."formVersionId"`)} = ${
-          params.formVersionId
+          normalizedParams.formVersionId
         }`
       );
     }
@@ -801,18 +937,18 @@ export class FormResponseMetricsService {
     if (formScopeSql) {
       whereParts.push(formScopeSql);
     }
-    if (params.status) {
+    if (normalizedParams.status) {
       whereParts.push(
         Prisma.sql`${Prisma.raw(`${responseAlias}."status"`)} = ${
-          params.status
+          normalizedParams.status
         }::"FormResponseStatus"`
       );
     }
-    if (params.start) {
-      whereParts.push(Prisma.sql`${dateColumn} >= ${params.start}`);
+    if (normalizedParams.start) {
+      whereParts.push(Prisma.sql`${dateColumn} >= ${normalizedParams.start}`);
     }
-    if (params.end) {
-      whereParts.push(Prisma.sql`${dateColumn} <= ${params.end}`);
+    if (normalizedParams.end) {
+      whereParts.push(Prisma.sql`${dateColumn} <= ${normalizedParams.end}`);
     }
 
     whereParts.push(
@@ -821,7 +957,7 @@ export class FormResponseMetricsService {
 
     const whereSql = Prisma.join(whereParts, " AND ");
     const rows = await this.client.$queryRaw<SeriesRow[]>(Prisma.sql`
-      SELECT date_trunc(${interval}, ${dateColumn}) AS bucket,
+      SELECT ${bucketColumn} AS bucket,
              COUNT(*)::int AS count
       FROM "FormResponse" ${Prisma.raw(responseAlias)}
       WHERE ${whereSql}
@@ -836,61 +972,75 @@ export class FormResponseMetricsService {
   }
 
   async distribution(params: DistributionParams) {
+    const normalizedParams = this.normalizeBaseFilters(params);
     const valueColumn = (() => {
-      switch (params.valueType) {
+      switch (normalizedParams.valueType) {
         case "number":
           return Prisma.raw('f."valueNumber"');
         case "boolean":
           return Prisma.raw('f."valueBool"');
         case "date":
-          return Prisma.raw('date_trunc(\'day\', f."valueDate")');
+          return Prisma.sql`
+            date_trunc(
+              'day',
+              timezone(${PROJECT_TIME_ZONE}, f."valueDate" AT TIME ZONE 'UTC')
+            ) AT TIME ZONE ${PROJECT_TIME_ZONE}
+          `;
         case "string":
         default:
           return Prisma.raw('f."value"');
       }
     })();
 
-    const fieldFilters = this.normalizeFieldFilters(params);
-    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
-    const referenceDate = this.getReferenceDate(params);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
+    const referenceDate = this.getReferenceDate(normalizedParams);
     const whereParts: Prisma.Sql[] = [Prisma.sql`${valueColumn} IS NOT NULL`];
 
-    if (params.fieldId) {
-      whereParts.push(Prisma.sql`f."fieldId" = ${params.fieldId}`);
+    if (normalizedParams.fieldId) {
+      whereParts.push(Prisma.sql`f."fieldId" = ${normalizedParams.fieldId}`);
     }
 
-    if (params.fieldName) {
-      whereParts.push(Prisma.sql`f."fieldName" = ${params.fieldName}`);
+    if (normalizedParams.fieldName) {
+      whereParts.push(Prisma.sql`f."fieldName" = ${normalizedParams.fieldName}`);
     }
 
-    if (params.projetoId) {
-      whereParts.push(Prisma.sql`r."projetoId" = ${params.projetoId}`);
+    if (normalizedParams.projetoId) {
+      whereParts.push(Prisma.sql`r."projetoId" = ${normalizedParams.projetoId}`);
     }
-    const projectFormScopeSql = this.buildProjectFormScopeSql("r", params.projetoId);
+    const projectFormScopeSql = this.buildProjectFormScopeSql(
+      "r",
+      normalizedParams.projetoId
+    );
     if (projectFormScopeSql) {
       whereParts.push(projectFormScopeSql);
     }
 
-    if (params.formVersionId) {
-      whereParts.push(Prisma.sql`r."formVersionId" = ${params.formVersionId}`);
+    if (normalizedParams.formVersionId) {
+      whereParts.push(
+        Prisma.sql`r."formVersionId" = ${normalizedParams.formVersionId}`
+      );
     }
     const formScopeSql = this.buildFormScopeSql("r", mergedFormIds);
     if (formScopeSql) {
       whereParts.push(formScopeSql);
     }
 
-    if (params.status) {
+    if (normalizedParams.status) {
       whereParts.push(
-        Prisma.sql`r."status" = ${params.status}::"FormResponseStatus"`
+        Prisma.sql`r."status" = ${normalizedParams.status}::"FormResponseStatus"`
       );
     }
 
-    if (params.start) {
-      whereParts.push(Prisma.sql`r."createdAt" >= ${params.start}`);
+    if (normalizedParams.start) {
+      whereParts.push(Prisma.sql`r."createdAt" >= ${normalizedParams.start}`);
     }
 
-    if (params.end) {
-      whereParts.push(Prisma.sql`r."createdAt" <= ${params.end}`);
+    if (normalizedParams.end) {
+      whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
     }
 
     whereParts.push(
@@ -906,7 +1056,7 @@ export class FormResponseMetricsService {
       WHERE ${whereSql}
       GROUP BY value
       ORDER BY count DESC
-      LIMIT ${params.limit}
+      LIMIT ${normalizedParams.limit}
     `);
 
     return rows.map((row) => ({
@@ -916,43 +1066,52 @@ export class FormResponseMetricsService {
   }
 
   async numberStats(params: NumberStatsParams) {
+    const normalizedParams = this.normalizeBaseFilters(params);
     const whereParts: Prisma.Sql[] = [
       Prisma.sql`f."valueNumber" IS NOT NULL`,
-      Prisma.sql`f."fieldId" = ${params.fieldId}`,
+      Prisma.sql`f."fieldId" = ${normalizedParams.fieldId}`,
     ];
 
-    const fieldFilters = this.normalizeFieldFilters(params);
-    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
-    const referenceDate = this.getReferenceDate(params);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
+    const referenceDate = this.getReferenceDate(normalizedParams);
 
-    if (params.projetoId) {
-      whereParts.push(Prisma.sql`r."projetoId" = ${params.projetoId}`);
+    if (normalizedParams.projetoId) {
+      whereParts.push(Prisma.sql`r."projetoId" = ${normalizedParams.projetoId}`);
     }
-    const projectFormScopeSql = this.buildProjectFormScopeSql("r", params.projetoId);
+    const projectFormScopeSql = this.buildProjectFormScopeSql(
+      "r",
+      normalizedParams.projetoId
+    );
     if (projectFormScopeSql) {
       whereParts.push(projectFormScopeSql);
     }
 
-    if (params.formVersionId) {
-      whereParts.push(Prisma.sql`r."formVersionId" = ${params.formVersionId}`);
+    if (normalizedParams.formVersionId) {
+      whereParts.push(
+        Prisma.sql`r."formVersionId" = ${normalizedParams.formVersionId}`
+      );
     }
     const formScopeSql = this.buildFormScopeSql("r", mergedFormIds);
     if (formScopeSql) {
       whereParts.push(formScopeSql);
     }
 
-    if (params.status) {
+    if (normalizedParams.status) {
       whereParts.push(
-        Prisma.sql`r."status" = ${params.status}::"FormResponseStatus"`
+        Prisma.sql`r."status" = ${normalizedParams.status}::"FormResponseStatus"`
       );
     }
 
-    if (params.start) {
-      whereParts.push(Prisma.sql`r."createdAt" >= ${params.start}`);
+    if (normalizedParams.start) {
+      whereParts.push(Prisma.sql`r."createdAt" >= ${normalizedParams.start}`);
     }
 
-    if (params.end) {
-      whereParts.push(Prisma.sql`r."createdAt" <= ${params.end}`);
+    if (normalizedParams.end) {
+      whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
     }
 
     whereParts.push(
@@ -987,13 +1146,17 @@ export class FormResponseMetricsService {
   }
 
   async statusFunnel(params: FunnelParams) {
+    const normalizedParams = this.normalizeBaseFilters(params);
     const where: Prisma.FormResponseWhereInput = {};
-    const fieldFilters = this.normalizeFieldFilters(params);
-    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
-    const referenceDate = this.getReferenceDate(params);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
+    const referenceDate = this.getReferenceDate(normalizedParams);
 
-    if (params.projetoId) {
-      where.projetoId = params.projetoId;
+    if (normalizedParams.projetoId) {
+      where.projetoId = normalizedParams.projetoId;
       const baseAnd = where.AND
         ? Array.isArray(where.AND)
           ? where.AND
@@ -1001,12 +1164,12 @@ export class FormResponseMetricsService {
         : [];
       where.AND = [
         ...baseAnd,
-        { formVersion: { form: { projetoId: params.projetoId } } },
+        { formVersion: { form: { projetoId: normalizedParams.projetoId } } },
       ];
     }
 
-    if (params.formVersionId) {
-      where.formVersionId = params.formVersionId;
+    if (normalizedParams.formVersionId) {
+      where.formVersionId = normalizedParams.formVersionId;
     }
 
     if (mergedFormIds?.length) {
@@ -1019,8 +1182,8 @@ export class FormResponseMetricsService {
         return [];
       }
 
-      if (params.formVersionId) {
-        if (!versionIds.includes(params.formVersionId)) {
+      if (normalizedParams.formVersionId) {
+        if (!versionIds.includes(normalizedParams.formVersionId)) {
           return [];
         }
       } else {
@@ -1028,13 +1191,13 @@ export class FormResponseMetricsService {
       }
     }
 
-    if (params.start || params.end) {
+    if (normalizedParams.start || normalizedParams.end) {
       where.createdAt = {};
-      if (params.start) {
-        where.createdAt.gte = params.start;
+      if (normalizedParams.start) {
+        where.createdAt.gte = normalizedParams.start;
       }
-      if (params.end) {
-        where.createdAt.lte = params.end;
+      if (normalizedParams.end) {
+        where.createdAt.lte = normalizedParams.end;
       }
     }
 
@@ -1069,20 +1232,12 @@ export class FormResponseMetricsService {
   }
 
   async projectReport(params: ProjectReportParams) {
-    debugLog("projectReport params", params);
-    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
-
-    const toStartOfDay = (value: Date) => {
-      const date = new Date(value);
-      date.setHours(0, 0, 0, 0);
-      return date;
-    };
-
-    const toEndOfDay = (value: Date) => {
-      const date = new Date(value);
-      date.setHours(23, 59, 59, 999);
-      return date;
-    };
+    const normalizedParams = this.normalizeBaseFilters(params);
+    debugLog("projectReport params", normalizedParams);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
 
     const addDays = (value: Date, days: number) => {
       const date = new Date(value);
@@ -1090,43 +1245,46 @@ export class FormResponseMetricsService {
       return date;
     };
 
-    const toDateKey = (value: Date) => value.toISOString().slice(0, 10);
-
     const hasDateFilters = Boolean(
-      params.start ||
-        params.end ||
-        params.dayStart ||
-        params.dayEnd ||
-        params.monthStart ||
-        params.monthEnd
+      normalizedParams.start ||
+        normalizedParams.end ||
+        normalizedParams.dayStart ||
+        normalizedParams.dayEnd ||
+        normalizedParams.monthStart ||
+        normalizedParams.monthEnd
     );
-    const hasAnyFilters = hasDateFilters || !!params.status;
+    const hasAnyFilters = hasDateFilters || !!normalizedParams.status;
 
     const baseFilters: BaseFilters = {
-      projetoId: params.projetoId,
-      formVersionId: params.formVersionId,
+      projetoId: normalizedParams.projetoId,
+      formVersionId: normalizedParams.formVersionId,
       formIds: mergedFormIds,
-      status: params.status,
-      start: params.start,
-      end: params.end,
+      status: normalizedParams.status,
+      start: normalizedParams.start,
+      end: normalizedParams.end,
     };
+
+    const monthStart = normalizedParams.monthStart
+      ? this.toProjectCalendarDateStart(normalizedParams.monthStart)
+      : undefined;
+    const monthEnd = normalizedParams.monthEnd
+      ? this.toProjectCalendarDateEnd(normalizedParams.monthEnd)
+      : undefined;
 
     const monthFilters: BaseFilters = {
       ...baseFilters,
-      start: params.monthStart ?? params.start,
-      end: params.monthEnd ?? params.end,
+      start: monthStart ?? normalizedParams.start,
+      end: monthEnd ?? normalizedParams.end,
     };
 
-    const dayStartParam = params.dayStart
-      ? toStartOfDay(params.dayStart)
+    const dayStartParam = normalizedParams.dayStart
+      ? this.toProjectCalendarDateStart(normalizedParams.dayStart)
       : undefined;
-    const dayEndParam = params.dayEnd ? toEndOfDay(params.dayEnd) : undefined;
-    const dayStartFromMonth = params.monthStart
-      ? toStartOfDay(params.monthStart)
+    const dayEndParam = normalizedParams.dayEnd
+      ? this.toProjectCalendarDateEnd(normalizedParams.dayEnd)
       : undefined;
-    const dayEndFromMonth = params.monthEnd
-      ? toEndOfDay(params.monthEnd)
-      : undefined;
+    const dayStartFromMonth = monthStart;
+    const dayEndFromMonth = monthEnd;
 
     let dayStart =
       dayStartParam ?? dayStartFromMonth ?? (hasAnyFilters ? undefined : null);
@@ -1134,12 +1292,9 @@ export class FormResponseMetricsService {
       dayEndParam ?? dayEndFromMonth ?? (hasAnyFilters ? undefined : null);
 
     if (!hasAnyFilters && (dayStart === null || dayEnd === null)) {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      monthEnd.setHours(23, 59, 59, 999);
-      dayStart = monthStart;
-      dayEnd = monthEnd;
+      const currentMonth = this.getProjectCurrentMonthBounds();
+      dayStart = currentMonth.start;
+      dayEnd = currentMonth.end;
     }
 
     if (dayStart === null) {
@@ -1149,15 +1304,17 @@ export class FormResponseMetricsService {
       dayEnd = undefined;
     }
 
-    const todayEnd = toEndOfDay(new Date());
+    const todayEnd = this.toProjectCalendarDateEnd(
+      this.getProjectCurrentDateReference()
+    );
     if (dayEnd && dayEnd > todayEnd) {
       dayEnd = todayEnd;
     }
 
     const dayFilters: BaseFilters = {
       ...baseFilters,
-      start: dayStart ?? params.start,
-      end: dayEnd ?? params.end,
+      start: dayStart ?? normalizedParams.start,
+      end: dayEnd ?? normalizedParams.end,
     };
 
     const buildReportWhereSql = (
@@ -1167,7 +1324,7 @@ export class FormResponseMetricsService {
         "projetoId" | "formVersionId" | "formIds" | "status" | "start" | "end"
       >
     ) => {
-      const dateColumn = getDateColumn(params.dateField, responseAlias);
+      const dateColumn = getDateColumn(normalizedParams.dateField, responseAlias);
       const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
 
       if (filters.projetoId) {
@@ -1229,12 +1386,12 @@ export class FormResponseMetricsService {
       this.timeSeries({
         ...monthFilters,
         interval: "month",
-        dateField: params.dateField,
+        dateField: normalizedParams.dateField,
       }),
       this.timeSeries({
         ...dayFilters,
         interval: "day",
-        dateField: params.dateField,
+        dateField: normalizedParams.dateField,
       }),
       this.client.$queryRaw<FormResponseByFormRow[]>(Prisma.sql`
         SELECT
@@ -1247,7 +1404,7 @@ export class FormResponseMetricsService {
         WHERE ${baseWhereSql}
         GROUP BY fv."formId", f."name"
         ORDER BY "total" DESC, "formName" ASC
-        LIMIT ${params.limitTopForms}
+        LIMIT ${normalizedParams.limitTopForms}
       `),
       this.client.$queryRaw<TotalRow[]>(Prisma.sql`
         SELECT COUNT(*)::int AS "total"
@@ -1257,7 +1414,10 @@ export class FormResponseMetricsService {
             SELECT 1
             FROM "FormResponseField" ff
             WHERE ff."responseId" = r."id"
-              AND ff."fieldName" IN ('opiniao', 'tipo_opiniao')
+              AND ff."fieldName" IN (${Prisma.join([
+                "opiniao",
+                ...this.getFieldNameCandidates("tipo_opiniao"),
+              ])})
           )
       `),
       this.client.$queryRaw<OpinionTypeRow[]>(Prisma.sql`
@@ -1267,7 +1427,9 @@ export class FormResponseMetricsService {
         FROM "FormResponse" r
         INNER JOIN "FormResponseField" ff
           ON ff."responseId" = r."id"
-         AND ff."fieldName" = 'tipo_opiniao'
+         AND ff."fieldName" IN (${Prisma.join(
+           this.getFieldNameCandidates("tipo_opiniao")
+         )})
         WHERE ${baseWhereSql}
         GROUP BY COALESCE(NULLIF(BTRIM(ff."value"), ''), 'Nao informado')
       `),
@@ -1336,11 +1498,11 @@ export class FormResponseMetricsService {
     if (dayStart && dayEnd) {
       const dayMap = new Map(daySeries.map((item) => [item.label, item.value]));
       const filled: { label: string; value: number }[] = [];
-      let cursor = toStartOfDay(dayStart);
-      const end = toEndOfDay(dayEnd);
+      let cursor = dayStart;
+      const end = dayEnd;
 
       while (cursor <= end) {
-        const key = toDateKey(cursor);
+        const key = this.getProjectDateKey(cursor);
         filled.push({ label: key, value: dayMap.get(key) ?? 0 });
         cursor = addDays(cursor, 1);
       }
@@ -1372,16 +1534,22 @@ export class FormResponseMetricsService {
   }
 
   async formFilters(params: FormFiltersParams) {
-    debugLog("formFilters params", params);
+    const normalizedParams = this.normalizeBaseFilters(params);
+    debugLog("formFilters params", normalizedParams);
 
-    const mergedFormIds = this.mergeFormIds(params.formId, params.formIds);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
 
     const forms = await this.client.form.findMany({
       where: {
-        ...(params.projetoId ? { projetoId: params.projetoId } : {}),
+        ...(normalizedParams.projetoId
+          ? { projetoId: normalizedParams.projetoId }
+          : {}),
         ...(mergedFormIds?.length ? { id: { in: mergedFormIds } } : {}),
-        ...(params.formVersionId
-          ? { versions: { some: { id: params.formVersionId } } }
+        ...(normalizedParams.formVersionId
+          ? { versions: { some: { id: normalizedParams.formVersionId } } }
           : {}),
       },
       select: {
@@ -1415,8 +1583,10 @@ export class FormResponseMetricsService {
     const formsWithVersion = forms
       .map((form) => {
         const version =
-          (params.formVersionId
-            ? form.versions.find((item) => item.id === params.formVersionId)
+          (normalizedParams.formVersionId
+            ? form.versions.find(
+                (item) => item.id === normalizedParams.formVersionId
+              )
             : undefined) ??
           form.versions.find((item) => item.isActive) ??
           form.versions[0];
@@ -1442,28 +1612,28 @@ export class FormResponseMetricsService {
       );
 
     const buildWhereSql = (responseAlias: string) => {
-      const dateColumn = getDateColumn(params.dateField, responseAlias);
+      const dateColumn = getDateColumn(normalizedParams.dateField, responseAlias);
       const whereParts: Prisma.Sql[] = [Prisma.sql`${dateColumn} IS NOT NULL`];
 
-      if (params.projetoId) {
+      if (normalizedParams.projetoId) {
         whereParts.push(
           Prisma.sql`${Prisma.raw(`${responseAlias}."projetoId"`)} = ${
-            params.projetoId
+            normalizedParams.projetoId
           }`
         );
       }
       const projectFormScopeSql = this.buildProjectFormScopeSql(
         responseAlias,
-        params.projetoId
+        normalizedParams.projetoId
       );
       if (projectFormScopeSql) {
         whereParts.push(projectFormScopeSql);
       }
 
-      if (params.formVersionId) {
+      if (normalizedParams.formVersionId) {
         whereParts.push(
           Prisma.sql`${Prisma.raw(`${responseAlias}."formVersionId"`)} = ${
-            params.formVersionId
+            normalizedParams.formVersionId
           }`
         );
       }
@@ -1473,20 +1643,20 @@ export class FormResponseMetricsService {
         whereParts.push(formScopeSql);
       }
 
-      if (params.status) {
+      if (normalizedParams.status) {
         whereParts.push(
           Prisma.sql`${Prisma.raw(`${responseAlias}."status"`)} = ${
-            params.status
+            normalizedParams.status
           }::"FormResponseStatus"`
         );
       }
 
-      if (params.start) {
-        whereParts.push(Prisma.sql`${dateColumn} >= ${params.start}`);
+      if (normalizedParams.start) {
+        whereParts.push(Prisma.sql`${dateColumn} >= ${normalizedParams.start}`);
       }
 
-      if (params.end) {
-        whereParts.push(Prisma.sql`${dateColumn} <= ${params.end}`);
+      if (normalizedParams.end) {
+        whereParts.push(Prisma.sql`${dateColumn} <= ${normalizedParams.end}`);
       }
 
       return Prisma.join(whereParts, " AND ");
@@ -1498,8 +1668,8 @@ export class FormResponseMetricsService {
       Array<{ minDate: Date | null; maxDate: Date | null }>
     >(Prisma.sql`
       SELECT
-        MIN(${getDateColumn(params.dateField, "r")}) AS "minDate",
-        MAX(${getDateColumn(params.dateField, "r")}) AS "maxDate"
+        MIN(${getDateColumn(normalizedParams.dateField, "r")}) AS "minDate",
+        MAX(${getDateColumn(normalizedParams.dateField, "r")}) AS "maxDate"
       FROM "FormResponse" r
       WHERE ${responseWhereSql}
     `);
@@ -1536,7 +1706,7 @@ export class FormResponseMetricsService {
                   AND ${responseWhereSql}
                 GROUP BY 1
                 ORDER BY "total" DESC, "value" ASC
-                LIMIT ${params.limitValuesPerField}
+                LIMIT ${normalizedParams.limitValuesPerField}
               `
             );
 
@@ -1585,7 +1755,7 @@ export class FormResponseMetricsService {
     );
 
     return {
-      dateField: params.dateField,
+      dateField: normalizedParams.dateField,
       dateRange: {
         min: dateRange.minDate ? dateRange.minDate.toISOString() : null,
         max: dateRange.maxDate ? dateRange.maxDate.toISOString() : null,
@@ -1595,18 +1765,8 @@ export class FormResponseMetricsService {
   }
 
   async report(params: ReportParams) {
-    debugLog("report params", params);
-    const toStartOfDay = (value: Date) => {
-      const date = new Date(value);
-      date.setHours(0, 0, 0, 0);
-      return date;
-    };
-
-    const toEndOfDay = (value: Date) => {
-      const date = new Date(value);
-      date.setHours(23, 59, 59, 999);
-      return date;
-    };
+    const normalizedParams = this.normalizeBaseFilters(params);
+    debugLog("report params", normalizedParams);
 
     const addDays = (value: Date, days: number) => {
       const date = new Date(value);
@@ -1614,48 +1774,51 @@ export class FormResponseMetricsService {
       return date;
     };
 
-    const toDateKey = (value: Date) =>
-      value.toISOString().slice(0, 10);
-
-    const fieldFilters = this.normalizeFieldFilters(params);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
     const hasFieldFilters = Object.values(fieldFilters).some(
       (values) => values && values.length > 0
     );
     const hasDateFilters = Boolean(
-      params.start ||
-        params.end ||
-        params.dayStart ||
-        params.dayEnd ||
-        params.monthStart ||
-        params.monthEnd
+      normalizedParams.start ||
+        normalizedParams.end ||
+        normalizedParams.dayStart ||
+        normalizedParams.dayEnd ||
+        normalizedParams.monthStart ||
+        normalizedParams.monthEnd
     );
-    const hasAnyFilters = hasFieldFilters || hasDateFilters || !!params.status;
+    const hasAnyFilters =
+      hasFieldFilters || hasDateFilters || !!normalizedParams.status;
 
     const baseFilters: BaseFilters = {
-      projetoId: params.projetoId,
-      formVersionId: params.formVersionId,
-      status: params.status,
-      start: params.start,
-      end: params.end,
+      projetoId: normalizedParams.projetoId,
+      formVersionId: normalizedParams.formVersionId,
+      status: normalizedParams.status,
+      start: normalizedParams.start,
+      end: normalizedParams.end,
       ...fieldFilters,
     };
 
+    const monthStart = normalizedParams.monthStart
+      ? this.toProjectCalendarDateStart(normalizedParams.monthStart)
+      : undefined;
+    const monthEnd = normalizedParams.monthEnd
+      ? this.toProjectCalendarDateEnd(normalizedParams.monthEnd)
+      : undefined;
+
     const monthFilters: BaseFilters = {
       ...baseFilters,
-      start: params.monthStart ?? params.start,
-      end: params.monthEnd ?? params.end,
+      start: monthStart ?? normalizedParams.start,
+      end: monthEnd ?? normalizedParams.end,
     };
 
-    const dayStartParam = params.dayStart
-      ? toStartOfDay(params.dayStart)
+    const dayStartParam = normalizedParams.dayStart
+      ? this.toProjectCalendarDateStart(normalizedParams.dayStart)
       : undefined;
-    const dayEndParam = params.dayEnd ? toEndOfDay(params.dayEnd) : undefined;
-    const dayStartFromMonth = params.monthStart
-      ? toStartOfDay(params.monthStart)
+    const dayEndParam = normalizedParams.dayEnd
+      ? this.toProjectCalendarDateEnd(normalizedParams.dayEnd)
       : undefined;
-    const dayEndFromMonth = params.monthEnd
-      ? toEndOfDay(params.monthEnd)
-      : undefined;
+    const dayStartFromMonth = monthStart;
+    const dayEndFromMonth = monthEnd;
 
     let dayStart =
       dayStartParam ?? dayStartFromMonth ?? (hasAnyFilters ? undefined : null);
@@ -1663,12 +1826,9 @@ export class FormResponseMetricsService {
       dayEndParam ?? dayEndFromMonth ?? (hasAnyFilters ? undefined : null);
 
     if (!hasAnyFilters && (dayStart === null || dayEnd === null)) {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      monthEnd.setHours(23, 59, 59, 999);
-      dayStart = monthStart;
-      dayEnd = monthEnd;
+      const currentMonth = this.getProjectCurrentMonthBounds();
+      dayStart = currentMonth.start;
+      dayEnd = currentMonth.end;
     }
 
     if (dayStart === null) {
@@ -1678,20 +1838,25 @@ export class FormResponseMetricsService {
       dayEnd = undefined;
     }
 
-    const todayEnd = toEndOfDay(new Date());
+    const todayEnd = this.toProjectCalendarDateEnd(
+      this.getProjectCurrentDateReference()
+    );
     if (dayEnd && dayEnd > todayEnd) {
       dayEnd = todayEnd;
     }
 
     const dayFilters: BaseFilters = {
       ...baseFilters,
-      start: dayStart ?? params.start,
-      end: dayEnd ?? params.end,
+      start: dayStart ?? normalizedParams.start,
+      end: dayEnd ?? normalizedParams.end,
     };
 
     const topThemesCollectionLimit = Math.min(
       200,
-      Math.max(params.limitTopThemes * 5, params.limitTopThemes)
+      Math.max(
+        normalizedParams.limitTopThemes * 5,
+        normalizedParams.limitTopThemes
+      )
     );
 
     const [
@@ -1716,48 +1881,48 @@ export class FormResponseMetricsService {
         ...baseFilters,
         fieldName: "bairro",
         valueType: "string",
-        limit: params.limitTopNeighborhoods,
+        limit: normalizedParams.limitTopNeighborhoods,
       }),
       this.distribution({
         ...baseFilters,
         fieldName: "genero",
         valueType: "string",
-        limit: params.limitDistribution,
+        limit: normalizedParams.limitDistribution,
       }),
       this.distribution({
         ...baseFilters,
         fieldName: "campanha",
         valueType: "string",
-        limit: params.limitDistribution,
+        limit: normalizedParams.limitDistribution,
       }),
-      this.distribution({
+      this.distributionByFieldAliases({
         ...baseFilters,
-        fieldName: "tipo_opiniao",
+        fieldNames: this.getFieldNameCandidates("tipo_opiniao"),
         valueType: "string",
-        limit: params.limitDistribution,
+        limit: normalizedParams.limitDistribution,
       }),
-      this.distribution({
+      this.distributionByFieldAliases({
         ...baseFilters,
-        fieldName: "ano_nascimento",
+        fieldNames: this.getFieldNameCandidates("ano_nascimento"),
         valueType: "string",
         limit: 200,
       }),
       this.timeSeries({
         ...monthFilters,
         interval: "month",
-        dateField: params.dateField,
+        dateField: normalizedParams.dateField,
       }),
       this.timeSeries({
         ...dayFilters,
         interval: "day",
-        dateField: params.dateField,
+        dateField: normalizedParams.dateField,
       }),
     ]);
 
     const topTemas = aggregateDistributionRows(
       topTemasRaw,
       canonicalizeThemeLabel
-    ).slice(0, params.limitTopThemes);
+    ).slice(0, normalizedParams.limitTopThemes);
     const tipos = aggregateDistributionRows(
       tiposRaw,
       canonicalizeOpinionTypeLabel
@@ -1785,8 +1950,7 @@ export class FormResponseMetricsService {
       }
     );
 
-    const referenceDate =
-      this.getReferenceDate(params);
+    const referenceDate = this.getReferenceDate(normalizedParams);
     const referenceYear = referenceDate.getFullYear();
     const ageBuckets = new Map(AGE_BUCKETS.map((bucket) => [bucket.label, 0]));
     let unknownAgeCount = 0;
@@ -1831,11 +1995,11 @@ export class FormResponseMetricsService {
         daySeries.map((item) => [item.label, item.value])
       );
       const filled: { label: string; value: number }[] = [];
-      let cursor = toStartOfDay(dayStart);
-      const end = toEndOfDay(dayEnd);
+      let cursor = dayStart;
+      const end = dayEnd;
 
       while (cursor <= end) {
-        const key = toDateKey(cursor);
+        const key = this.getProjectDateKey(cursor);
         filled.push({ label: key, value: dayMap.get(key) ?? 0 });
         cursor = addDays(cursor, 1);
       }
@@ -1876,20 +2040,27 @@ export class FormResponseMetricsService {
   }
 
   async summary(params: SummaryParams) {
-    const referenceDay = params.day ?? new Date();
-    const dayStart = this.toLocalCalendarDateStart(referenceDay);
-    const dayEnd = this.toLocalCalendarDateEnd(referenceDay);
+    const referenceDay = params.day ?? this.getProjectCurrentDateReference();
+    const dayStart = this.toProjectCalendarDateStart(referenceDay);
+    const dayEnd = this.toProjectCalendarDateEnd(referenceDay);
+    const rangeReferenceStart = params.rangeEnd
+      ? this.toProjectCalendarDateStart(params.rangeEnd)
+      : dayStart;
 
     const rangeEnd = params.rangeEnd
-      ? this.toLocalCalendarDateEnd(params.rangeEnd)
+      ? this.toProjectCalendarDateEnd(params.rangeEnd)
       : dayEnd;
     const rangeStart =
       params.rangeStart
-        ? this.toLocalCalendarDateStart(params.rangeStart)
-        : new Date(
-            rangeEnd.getFullYear() - 1,
-            rangeEnd.getMonth(),
-            rangeEnd.getDate()
+        ? this.toProjectCalendarDateStart(params.rangeStart)
+        : this.toProjectCalendarDateStart(
+            new Date(
+              Date.UTC(
+                rangeReferenceStart.getUTCFullYear() - 1,
+                rangeReferenceStart.getUTCMonth(),
+                rangeReferenceStart.getUTCDate()
+              )
+            )
           );
 
     const fieldFilters = this.normalizeFieldFilters(params);
@@ -1971,13 +2142,14 @@ export class FormResponseMetricsService {
   }
 
   async filters(params: FiltersParams) {
-    const fieldFilters = this.normalizeFieldFilters(params);
+    const normalizedParams = this.normalizeBaseFilters(params);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
     const baseFilters: BaseFilters = {
-      projetoId: params.projetoId,
-      formVersionId: params.formVersionId,
-      status: params.status,
-      start: params.start,
-      end: params.end,
+      projetoId: normalizedParams.projetoId,
+      formVersionId: normalizedParams.formVersionId,
+      status: normalizedParams.status,
+      start: normalizedParams.start,
+      end: normalizedParams.end,
       ...fieldFilters,
     };
 
@@ -1989,39 +2161,39 @@ export class FormResponseMetricsService {
       campanhas,
       anosNascimento,
     ] = await Promise.all([
-      this.distribution({
+      this.distributionByFieldAliases({
         ...baseFilters,
-        fieldName: "tipo_opiniao",
+        fieldNames: this.getFieldNameCandidates("tipo_opiniao"),
         valueType: "string",
-        limit: params.limit,
+        limit: normalizedParams.limit,
       }),
       this.distribution({
         ...baseFilters,
         fieldName: "opiniao",
         valueType: "string",
-        limit: params.limit,
+        limit: normalizedParams.limit,
       }),
       this.distribution({
         ...baseFilters,
         fieldName: "genero",
         valueType: "string",
-        limit: params.limit,
+        limit: normalizedParams.limit,
       }),
       this.distribution({
         ...baseFilters,
         fieldName: "bairro",
         valueType: "string",
-        limit: params.limit,
+        limit: normalizedParams.limit,
       }),
       this.distribution({
         ...baseFilters,
         fieldName: "campanha",
         valueType: "string",
-        limit: params.limit,
+        limit: normalizedParams.limit,
       }),
-      this.distribution({
+      this.distributionByFieldAliases({
         ...baseFilters,
-        fieldName: "ano_nascimento",
+        fieldNames: this.getFieldNameCandidates("ano_nascimento"),
         valueType: "string",
         limit: 200,
       }),
@@ -2033,7 +2205,7 @@ export class FormResponseMetricsService {
     );
     const temas = aggregateDistributionRows(temasRaw, canonicalizeThemeLabel);
 
-    const referenceDate = this.getReferenceDate(params);
+    const referenceDate = this.getReferenceDate(normalizedParams);
     const referenceYear = referenceDate.getFullYear();
     const ageBuckets = new Map(AGE_BUCKETS.map((bucket) => [bucket.label, 0]));
     let unknownAgeCount = 0;
