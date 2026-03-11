@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { injectable } from "inversify";
 
+import { normalizeDateRangeBoundary } from "@/common/utils/projectTimeZone";
 import { prisma } from "@/lib/prisma";
 import { RawListQueryInput } from "../http/validators/rawListValidator";
 
@@ -13,6 +14,9 @@ export class ListFormResponsesRawService {
   }
 
   async execute(params: RawListQueryInput) {
+    const start = normalizeDateRangeBoundary(params.start, "start");
+    const end = normalizeDateRangeBoundary(params.end, "end");
+
     const where: Prisma.FormResponseWhereInput = {
       projetoId: params.projetoId,
     };
@@ -21,13 +25,13 @@ export class ListFormResponsesRawService {
       where.formVersionId = params.formVersionId;
     }
 
-    if (params.start || params.end) {
+    if (start || end) {
       where.createdAt = {};
-      if (params.start) {
-        where.createdAt.gte = params.start;
+      if (start) {
+        where.createdAt.gte = start;
       }
-      if (params.end) {
-        where.createdAt.lte = params.end;
+      if (end) {
+        where.createdAt.lte = end;
       }
     }
 

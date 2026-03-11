@@ -1,4 +1,5 @@
 import * as Z from "zod";
+import { dateInputSchema } from "@/common/http/validators/dateInputSchema";
 
 const parseSelect = (value: unknown) => {
   if (Array.isArray(value)) {
@@ -19,8 +20,8 @@ const parseSelect = (value: unknown) => {
 export const rawListQuerySchema = Z.object({
   projetoId: Z.coerce.number().int().positive(),
   formVersionId: Z.coerce.number().int().positive().optional(),
-  start: Z.coerce.date().optional(),
-  end: Z.coerce.date().optional(),
+  start: dateInputSchema.optional(),
+  end: dateInputSchema.optional(),
   limit: Z.coerce.number().int().positive().max(500).default(200),
   offset: Z.coerce.number().int().nonnegative().default(0),
   select: Z.preprocess(parseSelect, Z.array(Z.string().trim().min(1)).optional()),

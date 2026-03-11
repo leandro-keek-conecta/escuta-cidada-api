@@ -1,5 +1,6 @@
 import { FormResponseStatus } from "@prisma/client";
 import * as Z from "zod";
+import { dateInputSchema } from "@/common/http/validators/dateInputSchema";
 
 const formIdsQuerySchema = Z.preprocess(
   (value) => {
@@ -70,8 +71,8 @@ const baseFiltersSchema = Z.object({
   campanhas: stringArrayQuerySchema,
   campanha: stringArrayQuerySchema,
   status: Z.nativeEnum(FormResponseStatus).optional(),
-  start: Z.coerce.date().optional(),
-  end: Z.coerce.date().optional(),
+  start: dateInputSchema.optional(),
+  end: dateInputSchema.optional(),
 });
 
 export const metricsTimeSeriesSchema = baseFiltersSchema
@@ -90,10 +91,10 @@ export const metricsReportSchema = baseFiltersSchema
     dateField: Z
       .enum(["createdAt", "submittedAt", "completedAt", "startedAt"])
       .default("createdAt"),
-    monthStart: Z.coerce.date().optional(),
-    monthEnd: Z.coerce.date().optional(),
-    dayStart: Z.coerce.date().optional(),
-    dayEnd: Z.coerce.date().optional(),
+    monthStart: dateInputSchema.optional(),
+    monthEnd: dateInputSchema.optional(),
+    dayStart: dateInputSchema.optional(),
+    dayEnd: dateInputSchema.optional(),
     limitTopThemes: Z.coerce.number().int().positive().max(200).default(10),
     limitTopNeighborhoods: Z.coerce
       .number()
@@ -114,10 +115,10 @@ export const metricsProjectReportSchema = baseFiltersSchema
     dateField: Z
       .enum(["createdAt", "submittedAt", "completedAt", "startedAt"])
       .default("createdAt"),
-    monthStart: Z.coerce.date().optional(),
-    monthEnd: Z.coerce.date().optional(),
-    dayStart: Z.coerce.date().optional(),
-    dayEnd: Z.coerce.date().optional(),
+    monthStart: dateInputSchema.optional(),
+    monthEnd: dateInputSchema.optional(),
+    dayStart: dateInputSchema.optional(),
+    dayEnd: dateInputSchema.optional(),
     limitTopForms: Z.coerce.number().int().positive().max(200).default(10),
   })
   .refine((data) => data.projetoId || data.formVersionId, {
@@ -144,9 +145,9 @@ export const metricsFormFiltersSchema = baseFiltersSchema
 
 export const metricsSummarySchema = baseFiltersSchema
   .extend({
-    day: Z.coerce.date().optional(),
-    rangeStart: Z.coerce.date().optional(),
-    rangeEnd: Z.coerce.date().optional(),
+    day: dateInputSchema.optional(),
+    rangeStart: dateInputSchema.optional(),
+    rangeEnd: dateInputSchema.optional(),
     limitTopThemes: Z.coerce.number().int().positive().max(200).default(5),
     limitTopNeighborhoods: Z.coerce
       .number()
