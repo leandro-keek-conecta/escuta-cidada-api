@@ -73,15 +73,15 @@ test("statusFunnel retorna contagem por status", async () => {
   ]);
 });
 
-test("projectReport agrega cards gerais e top formularios", async () => {
+test("projectReport agrega cards gerais e respostas por origem", async () => {
   const results = [
     [
       { status: FormResponseStatus.COMPLETED, count: "3" },
       { status: FormResponseStatus.ABANDONED, count: "1" },
     ],
     [
-      { formId: 2, formName: "Pesquisa NPS", total: "3" },
-      { formId: 4, formName: "Atendimento", total: 1 },
+      { label: "WhatsApp", total: "3" },
+      { label: "Web", total: 1 },
     ],
     [{ total: "2" }],
     [
@@ -130,9 +130,9 @@ test("projectReport agrega cards gerais e top formularios", async () => {
     { label: "2026-01-02", value: 0 },
     { label: "2026-01-03", value: 2 },
   ]);
-  assert.deepEqual(result.responsesByForm, [
-    { formId: 2, label: "Pesquisa NPS", value: 3 },
-    { formId: 4, label: "Atendimento", value: 1 },
+  assert.deepEqual(result.responsesByOrigin, [
+    { label: "Web", value: 1 },
+    { label: "WhatsApp", value: 3 },
   ]);
   assert.deepEqual(result.statusFunnel, [
     { status: FormResponseStatus.COMPLETED, count: 3 },

@@ -64,6 +64,7 @@ import { FormResponseMetricsService } from "@/modules/FormResponse/services/Form
 import { FormResponseMetricsController } from "@/modules/FormResponse/http/controller/formResponseMetricsController";
 import { ListFormByProjectSeparatedForFormService } from "@/modules/FormResponse/services/ListFormByProjectSeparatedForFormService";
 import { StorageService } from "@/modules/minio/services/storageService";
+import { MinioController } from "@/modules/minio/http/controller/minioController";
 const container = new Container();
 
 container.bind<UserController>(Types.UserController).to(UserController);
@@ -124,6 +125,7 @@ container.bind<CheckFormResponseFieldExistsService>(Types.CheckFormResponseField
 container.bind<FormResponseController>(Types.FormResponseController).to(FormResponseController);
 container.bind<FormResponseMetricsService>(Types.FormResponseMetricsService).to(FormResponseMetricsService);
 container.bind<FormResponseMetricsController>(Types.FormResponseMetricsController).to(FormResponseMetricsController);
+container.bind<MinioController>(Types.MinioController).to(MinioController);
 container.bind<StorageService>(Types.StorageService).to(StorageService)
 
 export default container;
