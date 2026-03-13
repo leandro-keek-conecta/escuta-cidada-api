@@ -126,9 +126,8 @@ type NumberStatsRow = {
 type StatusCountRow = { status: FormResponseStatus | string; count: number | string };
 type TotalRow = { total: number | string };
 type OpinionTypeRow = { tipoOpiniao: string | null; total: number | string };
-type FormResponseByFormRow = {
-  formId: number;
-  formName: string | null;
+type ResponseOriginRow = {
+  label: string;
   total: number | string;
 };
 type FieldValuesRow = { value: string | null; total: number | string };
@@ -1376,7 +1375,7 @@ export class FormResponseMetricsService {
 
     const baseWhereSql = buildReportWhereSql("r", baseFilters);
 
-    const [statusRows, mes, dia, formRows, opinionFormRows, opinionTypeRows] = await Promise.all([
+    const [statusRows, mes, dia, originRows, opinionFormRows, opinionTypeRows] = await Promise.all([
       this.client.$queryRaw<StatusCountRow[]>(Prisma.sql`
         SELECT r."status" AS "status", COUNT(*)::int AS "count"
         FROM "FormResponse" r
@@ -1393,18 +1392,19 @@ export class FormResponseMetricsService {
         interval: "day",
         dateField: normalizedParams.dateField,
       }),
-      this.client.$queryRaw<FormResponseByFormRow[]>(Prisma.sql`
+      this.client.$queryRaw<ResponseOriginRow[]>(Prisma.sql`
         SELECT
-          fv."formId" AS "formId",
-          f."name" AS "formName",
+          CASE
+            WHEN LOWER(BTRIM(COALESCE(r."source", ''))) = 'whatsapp'
+              OR LOWER(BTRIM(COALESCE(r."channel", ''))) = 'automation'
+            THEN 'WhatsApp'
+            ELSE 'Web'
+          END AS "label",
           COUNT(*)::int AS "total"
         FROM "FormResponse" r
-        INNER JOIN "FormVersion" fv ON fv."id" = r."formVersionId"
-        INNER JOIN "Form" f ON f."id" = fv."formId"
         WHERE ${baseWhereSql}
-        GROUP BY fv."formId", f."name"
-        ORDER BY "total" DESC, "formName" ASC
-        LIMIT ${normalizedParams.limitTopForms}
+        GROUP BY 1
+        ORDER BY "total" DESC, "label" ASC
       `),
       this.client.$queryRaw<TotalRow[]>(Prisma.sql`
         SELECT COUNT(*)::int AS "total"
@@ -1509,6 +1509,15 @@ export class FormResponseMetricsService {
       daySeries.splice(0, daySeries.length, ...filled);
     }
 
+    const originCounts = new Map<string, number>([
+      ["Web", 0],
+      ["WhatsApp", 0],
+    ]);
+
+    for (const row of originRows) {
+      originCounts.set(String(row.label), normalizeCount(row.total));
+    }
+
     return {
       cards: {
         totalOpinions: totalOpinionFormResponses,
@@ -1524,10 +1533,9 @@ export class FormResponseMetricsService {
         value: normalizeCount(row.count),
       })),
       lineByDay: daySeries,
-      responsesByForm: formRows.map((row) => ({
-        formId: row.formId,
-        label: normalizeLabel(row.formName ?? `Formulario ${row.formId}`),
-        value: normalizeCount(row.total),
+      responsesByOrigin: Array.from(originCounts.entries()).map(([label, value]) => ({
+        label,
+        value,
       })),
       statusFunnel,
     };

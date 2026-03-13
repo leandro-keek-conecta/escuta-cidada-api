@@ -69,7 +69,7 @@ Query:
 - `start`, `end` (opcionais)
 - `monthStart`, `monthEnd`, `dayStart`, `dayEnd` (opcionais)
 - `status` (opcional: STARTED | COMPLETED | ABANDONED)
-- `limitTopForms` (opcional, default 10, max 200)
+- `limitTopForms` (opcional, legado; ignorado pelo endpoint atual)
 
 Resposta:
 ```json
@@ -89,7 +89,10 @@ Resposta:
     },
     "lineByMonth": [{ "label": "2026-01", "value": 50 }],
     "lineByDay": [{ "label": "2026-01-15", "value": 5 }],
-    "responsesByForm": [{ "formId": 1, "label": "Pesquisa NPS", "value": 42 }],
+    "responsesByOrigin": [
+      { "label": "Web", "value": 42 },
+      { "label": "WhatsApp", "value": 18 }
+    ],
     "statusFunnel": [{ "status": "COMPLETED", "count": 90 }]
   }
 }

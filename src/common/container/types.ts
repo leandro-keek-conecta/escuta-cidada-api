@@ -62,6 +62,7 @@ const Types = {
   FormResponseController: Symbol("FormResponseController"),
   FormResponseMetricsService: Symbol("FormResponseMetricsService"),
   FormResponseMetricsController: Symbol("FormResponseMetricsController"),
+  MinioController: Symbol("MinioController"),
   StorageService: Symbol("StorageService"),
 };
 

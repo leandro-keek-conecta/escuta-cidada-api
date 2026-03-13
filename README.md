@@ -14,6 +14,7 @@ API em Fastify + TypeScript usada pelo Escuta Cidadã para autenticacao, gestao 
 - Node 18+ e npm
 - Banco PostgreSQL acessivel
 - Credenciais JWT e Power BI configuradas
+- Credenciais MinIO configuradas para upload direto
 
 ## Configuracao (.env)
 
@@ -43,6 +44,13 @@ POWER_BI_CLIENT_ID=<client_id>
 POWER_BI_CLIENT_SECRET=<client_secret>
 POWER_BI_USERNAME=<usuario>
 POWER_BI_PASSWORD=<senha>
+
+MINIO_ENDPOINT=https://s3.exemplo.com.br
+MINIO_PUBLIC_URL=https://s3.exemplo.com.br
+MINIO_BUCKET=uploads
+MINIO_ACCESS_KEY=<access_key>
+MINIO_SECRET_KEY=<secret_key>
+MINIO_USE_SSL=true
 ```
 
 ## Setup
@@ -62,6 +70,8 @@ POWER_BI_PASSWORD=<senha>
 - Projetos (JWT): `POST /projeto/create`, `GET /projeto/list`, `PATCH /projeto/update/:id`, `DELETE /projeto/delete/:id`
 - Automation chat (JWT admin): `POST /automationchat/create`, `PATCH /automationchat/update/:id`, `GET /automationchat/list/:projectId`, `DELETE /automationchat/delete/:id`
 - Power BI (JWT): `GET /powerbi/embed-token` gera token de embed usando as variaveis `POWER_BI_*`
+- Storage (JWT + admin/superadmin): `POST /storage/presigned-upload` gera URL assinada para o front enviar arquivo direto ao bucket
+- Storage batch (JWT + admin/superadmin): `POST /storage/presigned-upload/batch` gera varias URLs assinadas em uma unica chamada
 
 ## Realtime com Socket.IO
 
