@@ -80,7 +80,7 @@ export class UserController {
         .status(200)
         .send({ message: "Successfully retrieved Users", data: users });
     } catch (error) {
-      console.error("Error retrieving users:", (error as Error).message);
+      console.error("Error retrieving users: - userController.ts:83", (error as Error).message);
       return reply
         .status(500)
         .send({ message: "An error occurred while retrieving users" });
@@ -131,6 +131,7 @@ export class UserController {
   }
 
   public async forgotPassword(request: FastifyRequest, reply: FastifyReply) {
+    console.log("oi - userController.ts:134")
     const { email } = request.body as { email: string };
     const restartPasswordService = AppContainer.resolve<RestartPasswordService>(
       RestartPasswordService
