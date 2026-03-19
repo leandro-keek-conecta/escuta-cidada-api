@@ -20,7 +20,6 @@ export class RestartPasswordService {
   private tokenRepository!: IPasswordResetTokenRepository;
 
   public async execute({ email }: IRequest): Promise<void> {
-    console.log(email)
     if (!email)
       throw new AppError("Email é obrigatório", StatusCodes.BAD_REQUEST);
 
@@ -31,7 +30,6 @@ export class RestartPasswordService {
         throw new AppError("Usuário não encontrado", StatusCodes.NOT_FOUND);
       }
 
-      console.log(existUser);
 
       // Remove tokens antigos (caso existam)
       await this.tokenRepository.invalidate(existUser.id);
@@ -39,7 +37,6 @@ export class RestartPasswordService {
       // Gera token aleatório e hasheia
       const plainToken = crypto.randomBytes(32).toString("hex");
       const tokenHash = await argon2.hash(plainToken);
-      console.log(tokenHash);
       // Define expiração (15 min)
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -58,7 +55,6 @@ export class RestartPasswordService {
       }`;
 
       //Envia o e-mail via n8n
-      console.log(process.env.N8N_RESET_PASSWORD_WEBHOOK)
       const webhookUrl = process.env.N8N_RESET_PASSWORD_WEBHOOK!;
       const payload = {
         email,

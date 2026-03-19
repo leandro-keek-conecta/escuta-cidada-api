@@ -137,15 +137,12 @@ async function main() {
     }
 
     lastId = responses[responses.length - 1].id;
-    console.log(
-      `[backfill] processed=${responses.length} up to id=${lastId} updates=${operations.length}`
-    );
   }
 }
 
 main()
   .catch((error) => {
-    console.error("[backfill] failed", error);
+    console.error("[backfill] failed - backfillFormResponseFields.ts:145", error);
     process.exitCode = 1;
   })
   .finally(async () => {

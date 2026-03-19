@@ -131,7 +131,6 @@ export class UserController {
   }
 
   public async forgotPassword(request: FastifyRequest, reply: FastifyReply) {
-    console.log("oi - userController.ts:134")
     const { email } = request.body as { email: string };
     const restartPasswordService = AppContainer.resolve<RestartPasswordService>(
       RestartPasswordService
