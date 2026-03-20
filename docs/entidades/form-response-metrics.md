@@ -131,6 +131,7 @@ Authorization: Bearer <token>
       "totalPraise": 80,
       "totalSuggestions": 30
     },
+    "opinions_today": 12,
     "lineByMonth": [{ "label": "2026-01", "value": 50 }],
     "lineByDay": [{ "label": "2026-01-15", "value": 5 }],
     "topBairros": [{ "label": "Centro", "value": 12 }],

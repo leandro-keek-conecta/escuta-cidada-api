@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 const shouldLog = process.env.NODE_ENV !== "production";
 const debugLog = (...args: unknown[]) => {
   if (shouldLog) {
-    console.log("[FormResponseMetricsService]", ...args);
+    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:17", ...args);
   }
 };
 
@@ -1866,8 +1866,19 @@ export class FormResponseMetricsService {
         normalizedParams.limitTopThemes
       )
     );
+    const referenceDate = this.getReferenceDate(normalizedParams);
+    const fieldWhere = this.buildFieldFilterWhere(fieldFilters, referenceDate);
+    const fieldAnd = fieldWhere.AND
+      ? Array.isArray(fieldWhere.AND)
+        ? fieldWhere.AND
+        : [fieldWhere.AND]
+      : [];
+    const currentDay = this.getProjectCurrentDateReference();
+    const currentDayStart = this.toProjectCalendarDateStart(currentDay);
+    const currentDayEnd = this.toProjectCalendarDateEnd(currentDay);
 
     const [
+      totalOpinionsToday,
       statusFunnel,
       topTemasRaw,
       topBairros,
@@ -1878,6 +1889,22 @@ export class FormResponseMetricsService {
       mes,
       dia,
     ] = await Promise.all([
+      this.client.formResponse.count({
+        where: {
+          ...(baseFilters.projetoId
+            ? { projetoId: baseFilters.projetoId }
+            : {}),
+          ...(baseFilters.formVersionId
+            ? { formVersionId: baseFilters.formVersionId }
+            : {}),
+          ...(baseFilters.status ? { status: baseFilters.status } : {}),
+          [normalizedParams.dateField]: {
+            gte: currentDayStart,
+            lte: currentDayEnd,
+          },
+          ...(fieldAnd.length ? { AND: fieldAnd } : {}),
+        },
+      }),
       this.statusFunnel(baseFilters),
       this.distribution({
         ...baseFilters,
@@ -1958,7 +1985,6 @@ export class FormResponseMetricsService {
       }
     );
 
-    const referenceDate = this.getReferenceDate(normalizedParams);
     const referenceYear = referenceDate.getFullYear();
     const ageBuckets = new Map(AGE_BUCKETS.map((bucket) => [bucket.label, 0]));
     let unknownAgeCount = 0;
@@ -2016,6 +2042,7 @@ export class FormResponseMetricsService {
 
     return {
       cards,
+      opinions_today: totalOpinionsToday,
       lineByMonth: mes.map((row) => ({
         label: formatBucketLabel(row.bucket, "month"),
         value: normalizeCount(row.count),

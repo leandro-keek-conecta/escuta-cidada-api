@@ -212,7 +212,11 @@ test("formFilters retorna campos por formulario com valores agregados", async ()
 
 test("report unifica temas e tipos de opiniao por normalizacao", async () => {
   const service = new FormResponseMetricsService();
-  service.setClient({} as any);
+  service.setClient({
+    formResponse: {
+      count: async () => 2,
+    },
+  } as any);
 
   (service as any).statusFunnel = async () => [
     { status: FormResponseStatus.COMPLETED, count: 4 },
@@ -264,11 +268,16 @@ test("report unifica temas e tipos de opiniao por normalizacao", async () => {
     totalPraise: 1,
     totalSuggestions: 0,
   });
+  assert.equal(result.opinions_today, 2);
 });
 
 test("report unifica Outro e Outros em topTemas como Outros", async () => {
   const service = new FormResponseMetricsService();
-  service.setClient({} as any);
+  service.setClient({
+    formResponse: {
+      count: async () => 5,
+    },
+  } as any);
 
   (service as any).statusFunnel = async () => [];
   (service as any).timeSeries = async () => [];
@@ -296,11 +305,16 @@ test("report unifica Outro e Outros em topTemas como Outros", async () => {
   assert.deepEqual(result.topTemas, [
     { id: 1, tema: "Outros", total: 5 },
   ]);
+  assert.equal(result.opinions_today, 5);
 });
 
 test("report usa aliases alternativos para tipo de opiniao e ano de nascimento", async () => {
   const service = new FormResponseMetricsService();
-  service.setClient({} as any);
+  service.setClient({
+    formResponse: {
+      count: async () => 1,
+    },
+  } as any);
 
   (service as any).statusFunnel = async () => [];
   (service as any).timeSeries = async () => [];
@@ -328,6 +342,7 @@ test("report usa aliases alternativos para tipo de opiniao e ano de nascimento",
     totalPraise: 2,
     totalSuggestions: 0,
   });
+  assert.equal(result.opinions_today, 1);
   assert.deepEqual(result.tipoOpiniao, [{ label: "Elogio", value: 2 }]);
   assert.deepEqual(
     result.opinionsByAge.find((item) => item.label === "26-35"),
