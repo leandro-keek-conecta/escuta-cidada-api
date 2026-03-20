@@ -2,7 +2,7 @@ import "./register-alias";
 import figlet from "figlet";
 
 import { app } from "./app";
-import prisma from "./common/infra/prisma/index";
+import { prisma } from "@/lib/prisma";
 import { realtimeGateway } from "./common/realtime/realtimeGateway";
 import { env } from "./env/index";
 
