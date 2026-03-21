@@ -138,6 +138,15 @@ test("projectReport agrega cards gerais e respostas por origem", async () => {
     { status: FormResponseStatus.COMPLETED, count: 3 },
     { status: FormResponseStatus.ABANDONED, count: 1 },
   ]);
+  assert.deepEqual(result.meta, {
+    timeZone: "America/Fortaleza",
+    realtime: {
+      event: "domain:changed",
+      rooms: ["scope:global", "projeto:10"],
+      scopes: [{ projetoId: 10 }],
+      entities: ["form", "formVersion", "formField", "formResponse"],
+    },
+  });
 });
 
 test("formFilters retorna campos por formulario com valores agregados", async () => {
@@ -269,6 +278,15 @@ test("report unifica temas e tipos de opiniao por normalizacao", async () => {
     totalSuggestions: 0,
   });
   assert.equal(result.opinions_today, 2);
+  assert.deepEqual(result.meta, {
+    timeZone: "America/Fortaleza",
+    realtime: {
+      event: "domain:changed",
+      rooms: ["scope:global", "projeto:1"],
+      scopes: [{ projetoId: 1 }],
+      entities: ["form", "formVersion", "formField", "formResponse"],
+    },
+  });
 });
 
 test("report unifica Outro e Outros em topTemas como Outros", async () => {

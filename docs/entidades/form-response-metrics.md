@@ -114,6 +114,8 @@ Authorization: Bearer <token>
 **Normalizacao analitica**
 - `topTemas` e `tipoOpiniao` sao consolidados por chave normalizada
   (case/acento/espacos), mantendo dados brutos intactos no banco.
+- Calendario e agregacoes diarias/mensais usam `America/Fortaleza`,
+  que atende Joao Pessoa e o restante do Nordeste sem horario de verao.
 
 **Exemplo de uso**
 ```
@@ -125,6 +127,15 @@ Authorization: Bearer <token>
 ```json
 {
   "data": {
+    "meta": {
+      "timeZone": "America/Fortaleza",
+      "realtime": {
+        "event": "domain:changed",
+        "rooms": ["scope:global", "projeto:10"],
+        "scopes": [{ "projetoId": 10 }],
+        "entities": ["form", "formVersion", "formField", "formResponse"]
+      }
+    },
     "cards": {
       "totalOpinions": 120,
       "totalComplaints": 10,
@@ -171,6 +182,15 @@ Authorization: Bearer <token>
 ```json
 {
   "data": {
+    "meta": {
+      "timeZone": "America/Fortaleza",
+      "realtime": {
+        "event": "domain:changed",
+        "rooms": ["scope:global", "projeto:10"],
+        "scopes": [{ "projetoId": 10 }],
+        "entities": ["form", "formVersion", "formField", "formResponse"]
+      }
+    },
     "cards": {
       "totalOpinions": 60,
       "totalComplaints": 10,

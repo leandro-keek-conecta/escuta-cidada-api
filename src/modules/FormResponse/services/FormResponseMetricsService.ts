@@ -1,6 +1,12 @@
 import { FormResponseStatus, Prisma } from "@prisma/client";
 import { injectable } from "inversify";
 import {
+  REALTIME_CHANGE_EVENT,
+  REALTIME_GLOBAL_ROOM,
+  buildRealtimeRooms,
+  type RealtimeScope,
+} from "@/common/realtime/realtimeGateway";
+import {
   DateInput,
   PROJECT_TIME_ZONE,
   getProjectCurrentDateReference,
@@ -14,7 +20,7 @@ import { prisma } from "@/lib/prisma";
 const shouldLog = process.env.NODE_ENV !== "production";
 const debugLog = (...args: unknown[]) => {
   if (shouldLog) {
-    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:17", ...args);
+    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:18", ...args);
   }
 };
 
@@ -113,6 +119,13 @@ type SummaryParams = BaseFilters & {
 
 type FiltersParams = BaseFilters & {
   limit: number;
+};
+
+type MetricsRealtimeMeta = {
+  event: typeof REALTIME_CHANGE_EVENT;
+  rooms: string[];
+  scopes: RealtimeScope[];
+  entities: Array<"form" | "formVersion" | "formField" | "formResponse">;
 };
 
 type SeriesRow = { bucket: Date; count: number | string };
@@ -432,6 +445,47 @@ export class FormResponseMetricsService {
 
   private getProjectDateKey(value: Date) {
     return getProjectDateKey(value);
+  }
+
+  private buildMetricsRealtimeMeta(
+    ...scopes: Array<RealtimeScope | undefined>
+  ): MetricsRealtimeMeta {
+    const normalizedScopes = scopes.flatMap((scope) => {
+      if (!scope) {
+        return [];
+      }
+
+      const normalized: RealtimeScope = {};
+
+      if (typeof scope.projetoId === "number") {
+        normalized.projetoId = scope.projetoId;
+      }
+
+      if (typeof scope.formId === "number") {
+        normalized.formId = scope.formId;
+      }
+
+      if (typeof scope.formVersionId === "number") {
+        normalized.formVersionId = scope.formVersionId;
+      }
+
+      return Object.keys(normalized).length ? [normalized] : [];
+    });
+
+    const rooms = new Set<string>([REALTIME_GLOBAL_ROOM]);
+
+    for (const scope of normalizedScopes) {
+      for (const room of buildRealtimeRooms(scope)) {
+        rooms.add(room);
+      }
+    }
+
+    return {
+      event: REALTIME_CHANGE_EVENT,
+      rooms: [...rooms],
+      scopes: normalizedScopes,
+      entities: ["form", "formVersion", "formField", "formResponse"],
+    };
   }
 
   private getBucketSql(
@@ -1519,6 +1573,17 @@ export class FormResponseMetricsService {
     }
 
     return {
+      meta: {
+        timeZone: PROJECT_TIME_ZONE,
+        realtime: this.buildMetricsRealtimeMeta(
+          {
+            projetoId: normalizedParams.projetoId,
+            formVersionId: normalizedParams.formVersionId,
+            formId: normalizedParams.formId,
+          },
+          ...(mergedFormIds?.map((formId) => ({ formId })) ?? [])
+        ),
+      },
       cards: {
         totalOpinions: totalOpinionFormResponses,
         totalComplaints,
@@ -2041,6 +2106,13 @@ export class FormResponseMetricsService {
     }
 
     return {
+      meta: {
+        timeZone: PROJECT_TIME_ZONE,
+        realtime: this.buildMetricsRealtimeMeta({
+          projetoId: normalizedParams.projetoId,
+          formVersionId: normalizedParams.formVersionId,
+        }),
+      },
       cards,
       opinions_today: totalOpinionsToday,
       lineByMonth: mes.map((row) => ({
