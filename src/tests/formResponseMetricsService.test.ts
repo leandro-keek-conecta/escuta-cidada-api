@@ -513,3 +513,120 @@ test("buildFieldFilterWhere unifica tema Outro e Outros como Outros", () => {
     ],
   });
 });
+
+test("normalizeFieldFilters agrega aliases de busca textual nas metricas", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const filters = (service as any).normalizeFieldFilters({
+    busca: ["medicamento"],
+    search: ["ubatuba"],
+    keyword: ["remedio"],
+  });
+
+  assert.deepEqual(filters, {
+    temas: undefined,
+    tipos: undefined,
+    generos: undefined,
+    bairros: undefined,
+    faixaEtaria: undefined,
+    textoOpiniao: ["medicamento", "ubatuba", "remedio"],
+    campanhas: undefined,
+  });
+});
+
+test("buildFieldFilterWhere aplica busca textual em texto_opiniao e outra_opiniao", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const where = (service as any).buildFieldFilterWhere(
+    { textoOpiniao: ["inovacao"] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  assert.deepEqual(where, {
+    AND: [
+      {
+        fields: {
+          some: {
+            fieldName: { in: ["texto_opiniao", "outra_opiniao"] },
+            OR: [{ value: { contains: "inovacao", mode: "insensitive" } }],
+          },
+        },
+      },
+    ],
+  });
+});
+
+test("report restringe series e distribuicoes ao universo de opinioes", async () => {
+  let countWhere: any;
+  const capturedDistributions: any[] = [];
+  const capturedTimeSeries: any[] = [];
+  let capturedStatusFunnel: any;
+
+  const service = new FormResponseMetricsService();
+  service.setClient({
+    formResponse: {
+      count: async ({ where }: { where: unknown }) => {
+        countWhere = where;
+        return 0;
+      },
+    },
+  } as any);
+
+  (service as any).statusFunnel = async (params: unknown) => {
+    capturedStatusFunnel = params;
+    return [];
+  };
+  (service as any).distribution = async (params: unknown) => {
+    capturedDistributions.push(params);
+    return [];
+  };
+  (service as any).distributionByFieldAliases = async (params: unknown) => {
+    capturedDistributions.push(params);
+    return [];
+  };
+  (service as any).timeSeries = async (params: unknown) => {
+    capturedTimeSeries.push(params);
+    return [];
+  };
+
+  await service.report({
+    projetoId: 5,
+    dateField: "createdAt",
+    texto: ["inovacao"],
+    limitTopThemes: 10,
+    limitTopNeighborhoods: 10,
+    limitDistribution: 50,
+  });
+
+  assert.equal(capturedStatusFunnel.restrictToOpinionForms, true);
+  assert.equal(
+    capturedDistributions.every((params) => params.restrictToOpinionForms === true),
+    true
+  );
+  assert.equal(
+    capturedTimeSeries.every((params) => params.restrictToOpinionForms === true),
+    true
+  );
+  assert.equal(Array.isArray(countWhere.AND), true);
+  assert.deepEqual(countWhere.AND[0], {
+    fields: {
+      some: {
+        fieldName: {
+          in: [
+            "opiniao",
+            "texto_opiniao",
+            "outra_opiniao",
+            "tipo_opiniao",
+            "tipo_de_opiniao",
+            "tipoopiniao",
+            "tipodeopiniao",
+            "tipo_da_opiniao",
+            "classificacao_opiniao",
+          ],
+        },
+      },
+    },
+  });
+});

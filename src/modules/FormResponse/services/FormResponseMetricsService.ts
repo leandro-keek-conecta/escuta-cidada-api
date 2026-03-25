@@ -42,6 +42,9 @@ type FieldFilterInput = {
   faixasEtarias?: string[];
   textoOpiniao?: string[];
   texto?: string[];
+  busca?: string[];
+  search?: string[];
+  keyword?: string[];
   campanhas?: string[];
   campanha?: string[];
 };
@@ -64,6 +67,7 @@ type BaseFilters = {
   status?: FormResponseStatus;
   start?: DateInput;
   end?: DateInput;
+  restrictToOpinionForms?: boolean;
 } & FieldFilterInput;
 
 type TimeSeriesParams = BaseFilters & {
@@ -239,6 +243,13 @@ const BIRTH_YEAR_FIELD_CANDIDATES = [
   "nascimento",
 ] as const;
 
+const OPINION_FORM_FIELD_CANDIDATES = [
+  "opiniao",
+  "texto_opiniao",
+  "outra_opiniao",
+  ...OPINION_TYPE_FIELD_CANDIDATES,
+] as const;
+
 function canonicalizeThemeLabel(value: unknown) {
   const raw = String(value ?? "").trim();
   if (!raw) {
@@ -397,8 +408,37 @@ export class FormResponseMetricsService {
         params.faixaEtaria,
         params.faixasEtarias
       ),
-      textoOpiniao: this.mergeFilterValues(params.textoOpiniao, params.texto),
+      textoOpiniao: this.mergeFilterValues(
+        params.textoOpiniao,
+        params.texto,
+        params.busca,
+        params.search,
+        params.keyword
+      ),
       campanhas: this.mergeFilterValues(params.campanhas, params.campanha),
+    };
+  }
+
+  private buildOpinionScopeSql(responseAlias: string) {
+    const responseId = Prisma.raw(`${responseAlias}."id"`);
+
+    return Prisma.sql`EXISTS (
+      SELECT 1
+      FROM "FormResponseField" ff_opinion
+      WHERE ff_opinion."responseId" = ${responseId}
+        AND ff_opinion."fieldName" IN (${Prisma.join(
+          Array.from(OPINION_FORM_FIELD_CANDIDATES)
+        )})
+    )`;
+  }
+
+  private buildOpinionScopeWhere(): Prisma.FormResponseWhereInput {
+    return {
+      fields: {
+        some: {
+          fieldName: { in: Array.from(OPINION_FORM_FIELD_CANDIDATES) },
+        },
+      },
     };
   }
 
@@ -809,7 +849,11 @@ export class FormResponseMetricsService {
       const predicate = this.buildTextFilterSql("ff", filters.textoOpiniao);
       if (predicate) {
         clauses.push(
-          this.buildFieldExistsSql(responseAlias, "texto_opiniao", predicate)
+          this.buildFieldExistsSql(
+            responseAlias,
+            ["texto_opiniao", "outra_opiniao"],
+            predicate
+          )
         );
       }
     }
@@ -894,7 +938,7 @@ export class FormResponseMetricsService {
       });
     };
 
-    const addTextFilter = (fieldName: string, terms?: string[]) => {
+    const addTextFilter = (fieldName: string | string[], terms?: string[]) => {
       if (!terms?.length) {
         return;
       }
@@ -910,7 +954,7 @@ export class FormResponseMetricsService {
       and.push({
         fields: {
           some: {
-            fieldName,
+            fieldName: Array.isArray(fieldName) ? { in: fieldName } : fieldName,
             OR: or,
           },
         },
@@ -922,7 +966,7 @@ export class FormResponseMetricsService {
     addValueFilter("genero", filters.generos);
     addValueFilter("bairro", filters.bairros);
     addValueFilter("campanha", filters.campanhas);
-    addTextFilter("texto_opiniao", filters.textoOpiniao);
+    addTextFilter(["texto_opiniao", "outra_opiniao"], filters.textoOpiniao);
 
     if (filters.faixaEtaria?.length) {
       const { years, includeUnknown } = this.buildAgeFilterData(
@@ -1002,6 +1046,9 @@ export class FormResponseMetricsService {
     }
     if (normalizedParams.end) {
       whereParts.push(Prisma.sql`${dateColumn} <= ${normalizedParams.end}`);
+    }
+    if (normalizedParams.restrictToOpinionForms) {
+      whereParts.push(this.buildOpinionScopeSql(responseAlias));
     }
 
     whereParts.push(
@@ -1095,6 +1142,9 @@ export class FormResponseMetricsService {
     if (normalizedParams.end) {
       whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
     }
+    if (normalizedParams.restrictToOpinionForms) {
+      whereParts.push(this.buildOpinionScopeSql("r"));
+    }
 
     whereParts.push(
       ...this.buildFieldFilterSql("r", fieldFilters, referenceDate)
@@ -1165,6 +1215,9 @@ export class FormResponseMetricsService {
 
     if (normalizedParams.end) {
       whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
+    }
+    if (normalizedParams.restrictToOpinionForms) {
+      whereParts.push(this.buildOpinionScopeSql("r"));
     }
 
     whereParts.push(
@@ -1270,6 +1323,14 @@ export class FormResponseMetricsService {
           : [where.AND]
         : [];
       where.AND = [...baseAnd, ...fieldAnd];
+    }
+    if (normalizedParams.restrictToOpinionForms) {
+      const baseAnd = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+      where.AND = [...baseAnd, this.buildOpinionScopeWhere()];
     }
 
     const rows = await this.client.formResponse.groupBy({
@@ -1868,6 +1929,7 @@ export class FormResponseMetricsService {
       status: normalizedParams.status,
       start: normalizedParams.start,
       end: normalizedParams.end,
+      restrictToOpinionForms: true,
       ...fieldFilters,
     };
 
@@ -1938,6 +2000,8 @@ export class FormResponseMetricsService {
         ? fieldWhere.AND
         : [fieldWhere.AND]
       : [];
+    const opinionScopeWhere = this.buildOpinionScopeWhere();
+    const opinionScopeAnd = [opinionScopeWhere];
     const currentDay = this.getProjectCurrentDateReference();
     const currentDayStart = this.toProjectCalendarDateStart(currentDay);
     const currentDayEnd = this.toProjectCalendarDateEnd(currentDay);
@@ -1967,7 +2031,7 @@ export class FormResponseMetricsService {
             gte: currentDayStart,
             lte: currentDayEnd,
           },
-          ...(fieldAnd.length ? { AND: fieldAnd } : {}),
+          AND: [...opinionScopeAnd, ...fieldAnd],
         },
       }),
       this.statusFunnel(baseFilters),
@@ -2177,6 +2241,7 @@ export class FormResponseMetricsService {
       formVersionId: params.formVersionId,
       status: params.status,
       ...fieldFilters,
+      restrictToOpinionForms: true,
     };
 
     const fieldWhere = this.buildFieldFilterWhere(
@@ -2188,6 +2253,8 @@ export class FormResponseMetricsService {
         ? fieldWhere.AND
         : [fieldWhere.AND]
       : [];
+    const opinionScopeWhere = this.buildOpinionScopeWhere();
+    const opinionScopeAnd = [opinionScopeWhere];
 
     const [totalOpinionsToday, topTemasRaw, topBairros] = await Promise.all([
       this.client.formResponse.count({
@@ -2200,7 +2267,7 @@ export class FormResponseMetricsService {
             : {}),
           ...(baseFilters.status ? { status: baseFilters.status } : {}),
           createdAt: { gte: dayStart, lte: dayEnd },
-          ...(fieldAnd.length ? { AND: fieldAnd } : {}),
+          AND: [...opinionScopeAnd, ...fieldAnd],
         },
       }),
       this.distribution({
