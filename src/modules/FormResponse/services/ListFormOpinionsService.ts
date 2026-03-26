@@ -133,6 +133,10 @@ function getAccentlessVariant(value: string) {
     .trim();
 }
 
+function getDecomposedUnicodeVariant(value: string) {
+  return value.normalize("NFD").replace(/\s+/g, " ").trim();
+}
+
 @injectable()
 export class ListFormOpinionsService {
   private client = prisma;
@@ -219,6 +223,7 @@ export class ListFormOpinionsService {
       const canonical = canonicalizeThemeLabel(value);
       variants.add(canonical);
       variants.add(getAccentlessVariant(canonical));
+      variants.add(getDecomposedUnicodeVariant(canonical));
 
       if (normalizeText(canonical) === "outros") {
         variants.add("Outro");
@@ -230,6 +235,7 @@ export class ListFormOpinionsService {
       const canonical = canonicalizeOpinionTypeLabel(value);
       variants.add(canonical);
       variants.add(getAccentlessVariant(canonical));
+      variants.add(getDecomposedUnicodeVariant(canonical));
     }
 
     return Array.from(variants).filter((item) => item.trim().length > 0);

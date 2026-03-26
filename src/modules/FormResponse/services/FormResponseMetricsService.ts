@@ -286,6 +286,18 @@ function canonicalizeOriginLabel(value: unknown) {
   return ORIGIN_CANONICAL_BY_KEY[normalized] ?? raw;
 }
 
+function getAccentlessVariant(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getDecomposedUnicodeVariant(value: string) {
+  return value.normalize("NFD").replace(/\s+/g, " ").trim();
+}
+
 function aggregateDistributionRows(
   rows: DistributionRow[],
   canonicalizer?: (value: unknown) => string
@@ -795,7 +807,9 @@ export class FormResponseMetricsService {
 
     if (fieldName === "opiniao") {
       const canonical = canonicalizeThemeLabel(value);
+      variants.add(getDecomposedUnicodeVariant(canonical));
       variants.add(canonical);
+      variants.add(getAccentlessVariant(canonical));
 
       if (normalizeText(canonical) === "outros") {
         variants.add("Outro");
@@ -804,7 +818,10 @@ export class FormResponseMetricsService {
     }
 
     if (this.isOpinionTypeField(fieldName)) {
-      variants.add(canonicalizeOpinionTypeLabel(value));
+      const canonical = canonicalizeOpinionTypeLabel(value);
+      variants.add(canonical);
+      variants.add(getAccentlessVariant(canonical));
+      variants.add(getDecomposedUnicodeVariant(canonical));
     }
 
     return Array.from(variants).filter((item) => item.trim().length > 0);
@@ -830,19 +847,39 @@ export class FormResponseMetricsService {
     const conditions: Prisma.Sql[] = [];
 
     if (knownValues.length) {
-      const normalizedValues = Array.from(
+      const exactVariants = Array.from(
         new Set(
           knownValues
             .flatMap((value) => this.getCanonicalValueVariants(fieldName, value))
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0)
+        )
+      );
+      const normalizedValues = Array.from(
+        new Set(
+          exactVariants
             .map((value) => normalizeText(value))
             .filter((value) => value.length > 0)
         )
       );
-      conditions.push(
-        Prisma.sql`${this.buildNormalizedValueSql(column)} IN (${Prisma.join(
-          normalizedValues
-        )})`
-      );
+      const exactMatchSql = exactVariants.length
+        ? Prisma.sql`LOWER(BTRIM(COALESCE(${column}, ''))) IN (${Prisma.join(
+            exactVariants.map((value) => value.toLowerCase())
+          )})`
+        : null;
+      const normalizedMatchSql = normalizedValues.length
+        ? Prisma.sql`${this.buildNormalizedValueSql(column)} IN (${Prisma.join(
+            normalizedValues
+          )})`
+        : null;
+
+      if (exactMatchSql && normalizedMatchSql) {
+        conditions.push(Prisma.sql`(${exactMatchSql} OR ${normalizedMatchSql})`);
+      } else if (exactMatchSql) {
+        conditions.push(exactMatchSql);
+      } else if (normalizedMatchSql) {
+        conditions.push(normalizedMatchSql);
+      }
     }
 
     if (includeUnknown) {

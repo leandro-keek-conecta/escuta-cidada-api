@@ -209,3 +209,38 @@ test("ListFormOpinionsService considera variantes com e sem acento no filtro de 
   assert.equal(tipoVariants.includes("Sugestão"), true);
   assert.equal(tipoVariants.includes("Sugestao"), true);
 });
+
+test("ListFormOpinionsService considera variantes unicode combinadas no filtro de tema e tipo", async () => {
+  let capturedWhere: any;
+  const temaCanonico = "Sa\u00fade";
+  const tipoCanonico = "Sugest\u00e3o";
+
+  const service = new ListFormOpinionsService();
+  service.setClient({
+    formResponse: {
+      findMany: async ({ where }: { where: unknown }) => {
+        capturedWhere = where;
+        return [];
+      },
+      count: async () => 0,
+    },
+  } as any);
+
+  await service.execute({
+    projetoId: 5,
+    tema: [temaCanonico],
+    tipo: [tipoCanonico],
+    limit: 20,
+    offset: 0,
+  });
+
+  const temaVariants = capturedWhere.AND[1].fields.some.OR.map(
+    (item: any) => item.value.equals
+  );
+  const tipoVariants = capturedWhere.AND[2].fields.some.OR.map(
+    (item: any) => item.value.equals
+  );
+
+  assert.equal(temaVariants.includes(temaCanonico.normalize("NFD")), true);
+  assert.equal(tipoVariants.includes(tipoCanonico.normalize("NFD")), true);
+});

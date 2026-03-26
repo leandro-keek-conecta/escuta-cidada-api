@@ -527,6 +527,7 @@ test("buildFieldFilterWhere canoniza tema sem acento para filtrar valor acentuad
             fieldName: "opiniao",
             OR: [
               { value: { equals: "Educacao", mode: "insensitive" } },
+              { value: { equals: "Educação", mode: "insensitive" } },
               { value: { equals: "Educação", mode: "insensitive" } },
             ],
           },
@@ -560,6 +561,45 @@ test("buildFieldFilterWhere unifica tema Outro e Outros como Outros", () => {
       },
     ],
   });
+});
+
+test("buildFieldFilterWhere inclui variantes unicode combinadas no filtro por tipo", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+  const tipoCanonico = "Sugest\u00e3o";
+
+  const where = (service as any).buildFieldFilterWhere(
+    { tipos: [tipoCanonico] },
+    new Date("2026-02-26T00:00:00.000Z")
+  );
+
+  const variants = where.AND[0].fields.some.OR.map(
+    (item: any) => item.value.equals
+  );
+
+  assert.equal(variants.includes(tipoCanonico), true);
+  assert.equal(variants.includes("Sugestao"), true);
+  assert.equal(variants.includes(tipoCanonico.normalize("NFD")), true);
+});
+
+test("buildValueFilterSql inclui variantes unicode combinadas no filtro SQL por tipo", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+  const tipoCanonico = "Sugest\u00e3o";
+
+  const sql = (service as any).buildValueFilterSql(
+    "f",
+    [tipoCanonico],
+    "tipo_opiniao"
+  );
+
+  assert.equal(Array.isArray(sql.values), true);
+  assert.equal(sql.values.includes(tipoCanonico.toLowerCase()), true);
+  assert.equal(sql.values.includes("sugestao"), true);
+  assert.equal(
+    sql.values.includes(tipoCanonico.normalize("NFD").toLowerCase()),
+    true
+  );
 });
 
 test("normalizeFieldFilters agrega aliases de busca textual nas metricas", () => {
