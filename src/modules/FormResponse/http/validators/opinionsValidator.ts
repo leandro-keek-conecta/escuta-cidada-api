@@ -47,6 +47,8 @@ export const opinionsQuerySchema = Z.object({
   generos: stringArrayQuerySchema,
   bairro: stringArrayQuerySchema,
   bairros: stringArrayQuerySchema,
+  origem: stringArrayQuerySchema,
+  origens: stringArrayQuerySchema,
   faixaEtaria: stringArrayQuerySchema,
   faixasEtarias: stringArrayQuerySchema,
   texto: stringArrayQuerySchema,

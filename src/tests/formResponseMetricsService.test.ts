@@ -639,7 +639,22 @@ test("buildOriginWhere mapeia origem canonica para source/channel", () => {
   };
 
   assert.deepEqual(whatsappWhere, whatsappCondition);
-  assert.deepEqual(webWhere, { NOT: whatsappCondition });
+  assert.deepEqual(webWhere, {
+    AND: [
+      {
+        OR: [
+          { source: null },
+          { NOT: { source: { equals: "whatsapp", mode: "insensitive" } } },
+        ],
+      },
+      {
+        OR: [
+          { channel: null },
+          { NOT: { channel: { equals: "automation", mode: "insensitive" } } },
+        ],
+      },
+    ],
+  });
 });
 
 test("buildFieldFilterWhere aplica busca textual em texto_opiniao e outra_opiniao", () => {

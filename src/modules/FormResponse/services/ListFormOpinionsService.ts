@@ -41,6 +41,7 @@ type OpinionFieldFilters = {
   tipos?: string[];
   generos?: string[];
   bairros?: string[];
+  origens?: string[];
   faixaEtaria?: string[];
   textoOpiniao?: string[];
 };
@@ -71,6 +72,12 @@ const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
   reclamacao: "Reclama\u00e7\u00e3o",
   elogio: "Elogio",
   sugestao: "Sugest\u00e3o",
+};
+
+const ORIGIN_CANONICAL_BY_KEY: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  automation: "WhatsApp",
+  web: "Web",
 };
 
 const OPINION_TYPE_FIELD_CANDIDATES = [
@@ -123,6 +130,15 @@ function canonicalizeOpinionTypeLabel(value: unknown) {
   }
   const normalized = normalizeText(raw);
   return OPINION_TYPE_CANONICAL_BY_KEY[normalized] ?? raw;
+}
+
+function canonicalizeOriginLabel(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "N\u00e3o informado";
+  }
+  const normalized = normalizeText(raw);
+  return ORIGIN_CANONICAL_BY_KEY[normalized] ?? raw;
 }
 
 function getAccentlessVariant(value: string) {
@@ -190,6 +206,10 @@ export class ListFormOpinionsService {
       ),
       generos: this.mergeFilterValues(params.genero, params.generos),
       bairros: this.mergeFilterValues(params.bairro, params.bairros),
+      origens: canonicalizeValues(
+        this.mergeFilterValues(params.origem, params.origens),
+        canonicalizeOriginLabel
+      ),
       faixaEtaria: this.mergeFilterValues(
         params.faixaEtaria,
         params.faixasEtarias
@@ -380,6 +400,53 @@ export class ListFormOpinionsService {
     });
   }
 
+  private buildOriginWhere(
+    origins?: string[]
+  ): Prisma.FormResponseWhereInput | null {
+    if (!origins?.length) {
+      return null;
+    }
+
+    const conditions: Prisma.FormResponseWhereInput[] = [];
+    const normalizedOrigins = new Set(origins.map((value) => normalizeText(value)));
+    const whatsappOriginWhere: Prisma.FormResponseWhereInput = {
+      OR: [
+        { source: { equals: "whatsapp", mode: "insensitive" as const } },
+        { channel: { equals: "automation", mode: "insensitive" as const } },
+      ],
+    };
+    const webOriginWhere: Prisma.FormResponseWhereInput = {
+      AND: [
+        {
+          OR: [
+            { source: null },
+            { NOT: { source: { equals: "whatsapp", mode: "insensitive" as const } } },
+          ],
+        },
+        {
+          OR: [
+            { channel: null },
+            { NOT: { channel: { equals: "automation", mode: "insensitive" as const } } },
+          ],
+        },
+      ],
+    };
+
+    if (normalizedOrigins.has("whatsapp")) {
+      conditions.push(whatsappOriginWhere);
+    }
+
+    if (normalizedOrigins.has("web")) {
+      conditions.push(webOriginWhere);
+    }
+
+    if (!conditions.length) {
+      return null;
+    }
+
+    return conditions.length === 1 ? conditions[0] : { OR: conditions };
+  }
+
   private normalizeValue(field: {
     value: string | null;
     valueJson: Prisma.JsonValue | null;
@@ -527,6 +594,10 @@ export class ListFormOpinionsService {
     this.addValueFilter(and, "bairro", filters.bairros);
     this.addTextFilter(and, ["texto_opiniao", "outra_opiniao"], filters.textoOpiniao);
     this.addAgeFilter(and, filters.faixaEtaria, referenceDate);
+    const originWhere = this.buildOriginWhere(filters.origens);
+    if (originWhere) {
+      and.push(originWhere);
+    }
 
     const where: Prisma.FormResponseWhereInput = {
       projetoId: params.projetoId,

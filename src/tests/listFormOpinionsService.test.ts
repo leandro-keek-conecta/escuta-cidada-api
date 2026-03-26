@@ -244,3 +244,58 @@ test("ListFormOpinionsService considera variantes unicode combinadas no filtro d
   assert.equal(temaVariants.includes(temaCanonico.normalize("NFD")), true);
   assert.equal(tipoVariants.includes(tipoCanonico.normalize("NFD")), true);
 });
+
+test("ListFormOpinionsService aplica filtro por origem web e whatsapp", async () => {
+  let capturedWhere: any;
+
+  const service = new ListFormOpinionsService();
+  service.setClient({
+    formResponse: {
+      findMany: async ({ where }: { where: unknown }) => {
+        capturedWhere = where;
+        return [];
+      },
+      count: async () => 0,
+    },
+  } as any);
+
+  await service.execute({
+    projetoId: 5,
+    origem: ["web"],
+    limit: 20,
+    offset: 0,
+  });
+
+  const webOriginFilter = capturedWhere.AND[1];
+  assert.deepEqual(webOriginFilter, {
+    AND: [
+      {
+        OR: [
+          { source: null },
+          { NOT: { source: { equals: "whatsapp", mode: "insensitive" } } },
+        ],
+      },
+      {
+        OR: [
+          { channel: null },
+          { NOT: { channel: { equals: "automation", mode: "insensitive" } } },
+        ],
+      },
+    ],
+  });
+
+  await service.execute({
+    projetoId: 5,
+    origem: ["whatsapp"],
+    limit: 20,
+    offset: 0,
+  });
+
+  const whatsappOriginFilter = capturedWhere.AND[1];
+  assert.deepEqual(whatsappOriginFilter, {
+    OR: [
+      { source: { equals: "whatsapp", mode: "insensitive" } },
+      { channel: { equals: "automation", mode: "insensitive" } },
+    ],
+  });
+});

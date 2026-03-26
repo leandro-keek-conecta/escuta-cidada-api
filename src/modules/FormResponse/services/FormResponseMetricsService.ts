@@ -501,12 +501,28 @@ export class FormResponseMetricsService {
         { channel: { equals: "automation", mode: "insensitive" as const } },
       ],
     };
+    const webOriginWhere: Prisma.FormResponseWhereInput = {
+      AND: [
+        {
+          OR: [
+            { source: null },
+            { NOT: { source: { equals: "whatsapp", mode: "insensitive" as const } } },
+          ],
+        },
+        {
+          OR: [
+            { channel: null },
+            { NOT: { channel: { equals: "automation", mode: "insensitive" as const } } },
+          ],
+        },
+      ],
+    };
 
     if (normalizedOrigins.has("whatsapp")) {
       conditions.push(whatsappOriginWhere);
     }
     if (normalizedOrigins.has("web")) {
-      conditions.push({ NOT: whatsappOriginWhere });
+      conditions.push(webOriginWhere);
     }
 
     if (!conditions.length) {
