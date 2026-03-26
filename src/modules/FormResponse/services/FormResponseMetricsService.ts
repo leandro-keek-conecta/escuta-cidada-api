@@ -20,7 +20,7 @@ import { prisma } from "@/lib/prisma";
 const shouldLog = process.env.NODE_ENV !== "production";
 const debugLog = (...args: unknown[]) => {
   if (shouldLog) {
-    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:18", ...args);
+    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:23", ...args);
   }
 };
 
