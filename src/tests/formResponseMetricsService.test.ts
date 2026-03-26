@@ -219,6 +219,54 @@ test("formFilters retorna campos por formulario com valores agregados", async ()
   });
 });
 
+test("filters retorna opcoes de origem", async () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  (service as any).distributionByFieldAliases = async (params: {
+    fieldNames: string[];
+  }) => {
+    if (params.fieldNames.includes("tipo_opiniao")) {
+      return [{ value: "Elogio", count: 2 }];
+    }
+    if (params.fieldNames.includes("ano_nascimento")) {
+      return [{ value: "1999", count: 1 }];
+    }
+    return [];
+  };
+
+  (service as any).distribution = async (params: { fieldName: string }) => {
+    if (params.fieldName === "opiniao") {
+      return [{ value: "SaÃºde", count: 3 }];
+    }
+    if (params.fieldName === "genero") {
+      return [{ value: "Masculino", count: 2 }];
+    }
+    if (params.fieldName === "bairro") {
+      return [{ value: "Mangabeira", count: 2 }];
+    }
+    if (params.fieldName === "campanha") {
+      return [{ value: "Sim", count: 2 }];
+    }
+    return [];
+  };
+
+  (service as any).distributionByOrigin = async () => [
+    { value: "WhatsApp", count: 3 },
+    { value: "Web", count: 1 },
+  ];
+
+  const result = await service.filters({
+    projetoId: 5,
+    limit: 20,
+  });
+
+  assert.deepEqual(result.origens, [
+    { label: "WhatsApp", value: "WhatsApp", count: 3 },
+    { label: "Web", value: "Web", count: 1 },
+  ]);
+});
+
 test("report unifica temas e tipos de opiniao por normalizacao", async () => {
   const service = new FormResponseMetricsService();
   service.setClient({
@@ -529,10 +577,29 @@ test("normalizeFieldFilters agrega aliases de busca textual nas metricas", () =>
     tipos: undefined,
     generos: undefined,
     bairros: undefined,
+    origens: undefined,
     faixaEtaria: undefined,
     textoOpiniao: ["medicamento", "ubatuba", "remedio"],
     campanhas: undefined,
   });
+});
+
+test("buildOriginWhere mapeia origem canonica para source/channel", () => {
+  const service = new FormResponseMetricsService();
+  service.setClient({} as any);
+
+  const whatsappWhere = (service as any).buildOriginWhere(["WhatsApp"]);
+  const webWhere = (service as any).buildOriginWhere(["Web"]);
+
+  const whatsappCondition = {
+    OR: [
+      { source: { equals: "whatsapp", mode: "insensitive" } },
+      { channel: { equals: "automation", mode: "insensitive" } },
+    ],
+  };
+
+  assert.deepEqual(whatsappWhere, whatsappCondition);
+  assert.deepEqual(webWhere, { NOT: whatsappCondition });
 });
 
 test("buildFieldFilterWhere aplica busca textual em texto_opiniao e outra_opiniao", () => {
@@ -595,18 +662,38 @@ test("report restringe series e distribuicoes ao universo de opinioes", async ()
     projetoId: 5,
     dateField: "createdAt",
     texto: ["inovacao"],
+    origem: ["whatsapp"],
     limitTopThemes: 10,
     limitTopNeighborhoods: 10,
     limitDistribution: 50,
   });
 
   assert.equal(capturedStatusFunnel.restrictToOpinionForms, true);
+  assert.deepEqual(capturedStatusFunnel.origens, ["WhatsApp"]);
   assert.equal(
     capturedDistributions.every((params) => params.restrictToOpinionForms === true),
     true
   );
   assert.equal(
+    capturedDistributions.every(
+      (params) =>
+        Array.isArray(params.origens) &&
+        params.origens.length === 1 &&
+        params.origens[0] === "WhatsApp"
+    ),
+    true
+  );
+  assert.equal(
     capturedTimeSeries.every((params) => params.restrictToOpinionForms === true),
+    true
+  );
+  assert.equal(
+    capturedTimeSeries.every(
+      (params) =>
+        Array.isArray(params.origens) &&
+        params.origens.length === 1 &&
+        params.origens[0] === "WhatsApp"
+    ),
     true
   );
   assert.equal(Array.isArray(countWhere.AND), true);
@@ -629,4 +716,13 @@ test("report restringe series e distribuicoes ao universo de opinioes", async ()
       },
     },
   });
+  assert.equal(
+    countWhere.AND.some(
+      (item: any) =>
+        Array.isArray(item.OR) &&
+        item.OR.some((entry: any) => entry.source?.equals === "whatsapp") &&
+        item.OR.some((entry: any) => entry.channel?.equals === "automation")
+    ),
+    true
+  );
 });

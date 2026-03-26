@@ -20,7 +20,7 @@ import { prisma } from "@/lib/prisma";
 const shouldLog = process.env.NODE_ENV !== "production";
 const debugLog = (...args: unknown[]) => {
   if (shouldLog) {
-    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:18", ...args);
+    console.log("[FormResponseMetricsService] - FormResponseMetricsService.ts:23", ...args);
   }
 };
 
@@ -38,6 +38,8 @@ type FieldFilterInput = {
   generos?: string[];
   bairro?: string[];
   bairros?: string[];
+  origem?: string[];
+  origens?: string[];
   faixaEtaria?: string[];
   faixasEtarias?: string[];
   textoOpiniao?: string[];
@@ -54,6 +56,7 @@ type NormalizedFieldFilters = {
   tipos?: string[];
   generos?: string[];
   bairros?: string[];
+  origens?: string[];
   faixaEtaria?: string[];
   textoOpiniao?: string[];
   campanhas?: string[];
@@ -225,6 +228,12 @@ const OPINION_TYPE_CANONICAL_BY_KEY: Record<string, string> = {
 const ACCENTED_SQL_CHARS = "áàâãäåéèêëíìîïóòôõöúùûüçñ";
 const UNACCENTED_SQL_CHARS = "aaaaaaeeeeiiiiooooouuuucn";
 
+const ORIGIN_CANONICAL_BY_KEY: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  automation: "WhatsApp",
+  web: "Web",
+};
+
 const OPINION_TYPE_FIELD_CANDIDATES = [
   "tipo_opiniao",
   "tipo_de_opiniao",
@@ -266,6 +275,15 @@ function canonicalizeOpinionTypeLabel(value: unknown) {
   }
   const normalized = normalizeText(raw);
   return OPINION_TYPE_CANONICAL_BY_KEY[normalized] ?? raw;
+}
+
+function canonicalizeOriginLabel(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "NÃ£o informado";
+  }
+  const normalized = normalizeText(raw);
+  return ORIGIN_CANONICAL_BY_KEY[normalized] ?? raw;
 }
 
 function aggregateDistributionRows(
@@ -404,6 +422,10 @@ export class FormResponseMetricsService {
       ),
       generos: this.mergeFilterValues(params.genero, params.generos),
       bairros: this.mergeFilterValues(params.bairro, params.bairros),
+      origens: canonicalizeValues(
+        this.mergeFilterValues(params.origem, params.origens),
+        canonicalizeOriginLabel
+      ),
       faixaEtaria: this.mergeFilterValues(
         params.faixaEtaria,
         params.faixasEtarias
@@ -417,6 +439,69 @@ export class FormResponseMetricsService {
       ),
       campanhas: this.mergeFilterValues(params.campanhas, params.campanha),
     };
+  }
+
+  private buildWhatsAppOriginSql(responseAlias: string): Prisma.Sql {
+    const sourceColumn = Prisma.raw(`${responseAlias}."source"`);
+    const channelColumn = Prisma.raw(`${responseAlias}."channel"`);
+
+    return Prisma.sql`(
+      LOWER(BTRIM(COALESCE(${sourceColumn}, ''))) = 'whatsapp'
+      OR LOWER(BTRIM(COALESCE(${channelColumn}, ''))) = 'automation'
+    )`;
+  }
+
+  private buildOriginFilterSql(responseAlias: string, origins?: string[]) {
+    if (!origins?.length) {
+      return null;
+    }
+
+    const conditions: Prisma.Sql[] = [];
+    const normalizedOrigins = new Set(origins.map((value) => normalizeText(value)));
+    const whatsappOriginSql = this.buildWhatsAppOriginSql(responseAlias);
+
+    if (normalizedOrigins.has("whatsapp")) {
+      conditions.push(whatsappOriginSql);
+    }
+    if (normalizedOrigins.has("web")) {
+      conditions.push(Prisma.sql`NOT ${whatsappOriginSql}`);
+    }
+
+    if (!conditions.length) {
+      return null;
+    }
+
+    return Prisma.join(conditions, " OR ");
+  }
+
+  private buildOriginWhere(
+    origins?: string[]
+  ): Prisma.FormResponseWhereInput | null {
+    if (!origins?.length) {
+      return null;
+    }
+
+    const conditions: Prisma.FormResponseWhereInput[] = [];
+    const normalizedOrigins = new Set(origins.map((value) => normalizeText(value)));
+    const whatsappOriginWhere: Prisma.FormResponseWhereInput = {
+      OR: [
+        { source: { equals: "whatsapp", mode: "insensitive" as const } },
+        { channel: { equals: "automation", mode: "insensitive" as const } },
+      ],
+    };
+
+    if (normalizedOrigins.has("whatsapp")) {
+      conditions.push(whatsappOriginWhere);
+    }
+    if (normalizedOrigins.has("web")) {
+      conditions.push({ NOT: whatsappOriginWhere });
+    }
+
+    if (!conditions.length) {
+      return null;
+    }
+
+    return conditions.length === 1 ? conditions[0] : { OR: conditions };
   }
 
   private buildOpinionScopeSql(responseAlias: string) {
@@ -606,6 +691,93 @@ export class FormResponseMetricsService {
     );
 
     return this.mergeDistributionRows(...rows);
+  }
+
+  private buildOriginLabelSql(responseAlias: string): Prisma.Sql {
+    const whatsappOriginSql = this.buildWhatsAppOriginSql(responseAlias);
+
+    return Prisma.sql`
+      CASE
+        WHEN ${whatsappOriginSql} THEN 'WhatsApp'
+        ELSE 'Web'
+      END
+    `;
+  }
+
+  private async distributionByOrigin(
+    params: BaseFilters & { limit: number }
+  ) {
+    const normalizedParams = this.normalizeBaseFilters(params);
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
+    const mergedFormIds = this.mergeFormIds(
+      normalizedParams.formId,
+      normalizedParams.formIds
+    );
+    const referenceDate = this.getReferenceDate(normalizedParams);
+    const whereParts: Prisma.Sql[] = [];
+
+    if (normalizedParams.projetoId) {
+      whereParts.push(Prisma.sql`r."projetoId" = ${normalizedParams.projetoId}`);
+    }
+    const projectFormScopeSql = this.buildProjectFormScopeSql(
+      "r",
+      normalizedParams.projetoId
+    );
+    if (projectFormScopeSql) {
+      whereParts.push(projectFormScopeSql);
+    }
+
+    if (normalizedParams.formVersionId) {
+      whereParts.push(
+        Prisma.sql`r."formVersionId" = ${normalizedParams.formVersionId}`
+      );
+    }
+    const formScopeSql = this.buildFormScopeSql("r", mergedFormIds);
+    if (formScopeSql) {
+      whereParts.push(formScopeSql);
+    }
+
+    if (normalizedParams.status) {
+      whereParts.push(
+        Prisma.sql`r."status" = ${normalizedParams.status}::"FormResponseStatus"`
+      );
+    }
+
+    if (normalizedParams.start) {
+      whereParts.push(Prisma.sql`r."createdAt" >= ${normalizedParams.start}`);
+    }
+
+    if (normalizedParams.end) {
+      whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
+    }
+
+    const originSql = this.buildOriginFilterSql("r", fieldFilters.origens);
+    if (originSql) {
+      whereParts.push(originSql);
+    }
+
+    whereParts.push(
+      ...this.buildFieldFilterSql("r", fieldFilters, referenceDate)
+    );
+
+    const whereSql = whereParts.length
+      ? Prisma.join(whereParts, " AND ")
+      : Prisma.sql`TRUE`;
+    const originLabelSql = this.buildOriginLabelSql("r");
+    const rows = await this.client.$queryRaw<DistributionRow[]>(Prisma.sql`
+      SELECT ${originLabelSql} AS value,
+             COUNT(*)::int AS count
+      FROM "FormResponse" r
+      WHERE ${whereSql}
+      GROUP BY 1
+      ORDER BY count DESC, value ASC
+      LIMIT ${normalizedParams.limit}
+    `);
+
+    return rows.map((row) => ({
+      value: row.value,
+      count: normalizeCount(row.count),
+    }));
   }
 
   private buildNormalizedValueSql(column: Prisma.Sql | ReturnType<typeof Prisma.raw>) {
@@ -1047,6 +1219,13 @@ export class FormResponseMetricsService {
     if (normalizedParams.end) {
       whereParts.push(Prisma.sql`${dateColumn} <= ${normalizedParams.end}`);
     }
+    const originSql = this.buildOriginFilterSql(
+      responseAlias,
+      fieldFilters.origens
+    );
+    if (originSql) {
+      whereParts.push(originSql);
+    }
     if (normalizedParams.restrictToOpinionForms) {
       whereParts.push(this.buildOpinionScopeSql(responseAlias));
     }
@@ -1142,6 +1321,10 @@ export class FormResponseMetricsService {
     if (normalizedParams.end) {
       whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
     }
+    const originSql = this.buildOriginFilterSql("r", fieldFilters.origens);
+    if (originSql) {
+      whereParts.push(originSql);
+    }
     if (normalizedParams.restrictToOpinionForms) {
       whereParts.push(this.buildOpinionScopeSql("r"));
     }
@@ -1215,6 +1398,10 @@ export class FormResponseMetricsService {
 
     if (normalizedParams.end) {
       whereParts.push(Prisma.sql`r."createdAt" <= ${normalizedParams.end}`);
+    }
+    const originSql = this.buildOriginFilterSql("r", fieldFilters.origens);
+    if (originSql) {
+      whereParts.push(originSql);
     }
     if (normalizedParams.restrictToOpinionForms) {
       whereParts.push(this.buildOpinionScopeSql("r"));
@@ -1316,6 +1503,7 @@ export class FormResponseMetricsService {
         ? fieldWhere.AND
         : [fieldWhere.AND]
       : [];
+    const originWhere = this.buildOriginWhere(fieldFilters.origens);
     if (fieldAnd.length) {
       const baseAnd = where.AND
         ? Array.isArray(where.AND)
@@ -1323,6 +1511,14 @@ export class FormResponseMetricsService {
           : [where.AND]
         : [];
       where.AND = [...baseAnd, ...fieldAnd];
+    }
+    if (originWhere) {
+      const baseAnd = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+      where.AND = [...baseAnd, originWhere];
     }
     if (normalizedParams.restrictToOpinionForms) {
       const baseAnd = where.AND
@@ -1352,6 +1548,7 @@ export class FormResponseMetricsService {
       normalizedParams.formId,
       normalizedParams.formIds
     );
+    const fieldFilters = this.normalizeFieldFilters(normalizedParams);
 
     const addDays = (value: Date, days: number) => {
       const date = new Date(value);
@@ -1376,6 +1573,7 @@ export class FormResponseMetricsService {
       status: normalizedParams.status,
       start: normalizedParams.start,
       end: normalizedParams.end,
+      origens: fieldFilters.origens,
     };
 
     const monthStart = normalizedParams.monthStart
@@ -1435,7 +1633,13 @@ export class FormResponseMetricsService {
       responseAlias: string,
       filters: Pick<
         BaseFilters,
-        "projetoId" | "formVersionId" | "formIds" | "status" | "start" | "end"
+        | "projetoId"
+        | "formVersionId"
+        | "formIds"
+        | "status"
+        | "start"
+        | "end"
+        | "origens"
       >
     ) => {
       const dateColumn = getDateColumn(normalizedParams.dateField, responseAlias);
@@ -1483,6 +1687,10 @@ export class FormResponseMetricsService {
 
       if (filters.end) {
         whereParts.push(Prisma.sql`${dateColumn} <= ${filters.end}`);
+      }
+      const originSql = this.buildOriginFilterSql(responseAlias, filters.origens);
+      if (originSql) {
+        whereParts.push(originSql);
       }
 
       return Prisma.join(whereParts, " AND ");
@@ -2000,8 +2208,12 @@ export class FormResponseMetricsService {
         ? fieldWhere.AND
         : [fieldWhere.AND]
       : [];
+    const originWhere = this.buildOriginWhere(fieldFilters.origens);
     const opinionScopeWhere = this.buildOpinionScopeWhere();
-    const opinionScopeAnd = [opinionScopeWhere];
+    const opinionScopeAnd = [
+      opinionScopeWhere,
+      ...(originWhere ? [originWhere] : []),
+    ];
     const currentDay = this.getProjectCurrentDateReference();
     const currentDayStart = this.toProjectCalendarDateStart(currentDay);
     const currentDayEnd = this.toProjectCalendarDateEnd(currentDay);
@@ -2253,8 +2465,12 @@ export class FormResponseMetricsService {
         ? fieldWhere.AND
         : [fieldWhere.AND]
       : [];
+    const originWhere = this.buildOriginWhere(fieldFilters.origens);
     const opinionScopeWhere = this.buildOpinionScopeWhere();
-    const opinionScopeAnd = [opinionScopeWhere];
+    const opinionScopeAnd = [
+      opinionScopeWhere,
+      ...(originWhere ? [originWhere] : []),
+    ];
 
     const [totalOpinionsToday, topTemasRaw, topBairros] = await Promise.all([
       this.client.formResponse.count({
@@ -2332,6 +2548,7 @@ export class FormResponseMetricsService {
       temasRaw,
       genero,
       bairros,
+      origens,
       campanhas,
       anosNascimento,
     ] = await Promise.all([
@@ -2357,6 +2574,10 @@ export class FormResponseMetricsService {
         ...baseFilters,
         fieldName: "bairro",
         valueType: "string",
+        limit: normalizedParams.limit,
+      }),
+      this.distributionByOrigin({
+        ...baseFilters,
         limit: normalizedParams.limit,
       }),
       this.distribution({
@@ -2431,6 +2652,7 @@ export class FormResponseMetricsService {
       temas: toOptions(temas),
       genero: toOptions(genero),
       bairros: toOptions(bairros),
+      origens: toOptions(origens),
       campanhas: toOptions(campanhas),
       faixaEtaria,
     };
