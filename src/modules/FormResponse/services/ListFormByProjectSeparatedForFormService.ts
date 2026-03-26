@@ -140,6 +140,8 @@ export class ListFormByProjectSeparatedForFormService {
         });
       }
 
+      console.log()
+
       const forms = Array.from(groupedByForm.values()).sort(
         (left, right) => right.totalResponses - left.totalResponses
       );
@@ -152,7 +154,7 @@ export class ListFormByProjectSeparatedForFormService {
         forms,
       };
     } catch (error) {
-      console.error("Erro no ListFormByProjectSeparatedForFormService:", error);
+      console.error("Erro no ListFormByProjectSeparatedForFormService: - ListFormByProjectSeparatedForFormService.ts:157", error);
       throw new AppError(
         "Erro ao listar respostas do projeto por formulario",
         StatusCodes.INTERNAL_SERVER_ERROR

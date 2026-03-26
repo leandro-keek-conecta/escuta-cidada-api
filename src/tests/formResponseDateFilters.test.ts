@@ -10,7 +10,7 @@ test("opinions expande data simples para o dia inteiro em America/Fortaleza", as
 
   const service = new ListFormOpinionsService();
   service.setClient({
-    formResponseField: {
+    formResponse: {
       findMany: async ({ where }: { where: unknown }) => {
         capturedWhere = where;
         return [];
@@ -25,15 +25,14 @@ test("opinions expande data simples para o dia inteiro em America/Fortaleza", as
     end: "2026-03-10",
     limit: 20,
     offset: 0,
-    fieldName: "opiniao",
   });
 
   assert.equal(
-    capturedWhere.response.createdAt.gte.toISOString(),
+    capturedWhere.AND[1].createdAt.gte.toISOString(),
     "2026-03-10T03:00:00.000Z"
   );
   assert.equal(
-    capturedWhere.response.createdAt.lte.toISOString(),
+    capturedWhere.AND[1].createdAt.lte.toISOString(),
     "2026-03-11T02:59:59.999Z"
   );
 });

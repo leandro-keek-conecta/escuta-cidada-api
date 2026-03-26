@@ -140,13 +140,23 @@ Authorization: Bearer <token>
 - Query:
   - `projetoId` (obrigatorio)
   - `start`, `end` (opcionais, data ISO)
+  - `status` (opcional: STARTED | COMPLETED | ABANDONED)
   - `limit` (opcional, default 200, max 500)
   - `offset` (opcional, default 0)
-  - `fieldName` (opcional, default "opiniao")
+  - `tema`/`temas` (opcional)
+  - `tipo`/`tipos`/`tipoOpiniao` (opcional)
+  - `genero`/`generos` (opcional)
+  - `bairro`/`bairros` (opcional)
+  - `faixaEtaria`/`faixasEtarias` (opcional, ex: `19-25`, `26-35`, `60+`)
+  - `texto`/`textoOpiniao`/`busca`/`search`/`keyword` (opcional, pesquisa por palavra ou frase em `texto_opiniao` e `outra_opiniao`)
+
+**Comportamento**
+- O endpoint identifica respostas de formularios de opiniao dentro do projeto pela presenca de campos semanticos como `opiniao`, `texto_opiniao`, `outra_opiniao` e `tipo_opiniao`.
+- O retorno e agrupado por formulario e cada resposta vem achatada, no mesmo estilo do endpoint grouped.
 
 **Exemplo de uso**
 ```
-GET /escuta-cidada-api/form-response/opinions?projetoId=5&start=2025-01-29&end=2026-01-29&limit=200
+GET /escuta-cidada-api/form-response/opinions?projetoId=5&tema=Saude&tipo=Reclamacao&bairro=Mangabeira&busca=medicamento&limit=200
 Authorization: Bearer <token>
 ```
 
@@ -154,11 +164,33 @@ Authorization: Bearer <token>
 ```json
 {
   "data": {
-    "total": 120,
+    "projectId": 5,
+    "totalResponses": 120,
+    "returnedResponses": 50,
+    "totalForms": 1,
     "limit": 200,
     "offset": 0,
-    "items": [
-      { "responseId": 100, "value": "Gostei do atendimento", "createdAt": "2026-01-29T12:10:00.000Z" }
+    "forms": [
+      {
+        "formId": 3,
+        "formName": "Formulario de Opiniao",
+        "formVersionIds": [7],
+        "totalResponses": 50,
+        "latestResponseAt": "2026-01-29T12:10:00.000Z",
+        "responses": [
+          {
+            "id": 100,
+            "usuario_id": 1,
+            "horario": "2026-01-29T12:10:00.000Z",
+            "createdAt": "2026-01-29T12:10:00.000Z",
+            "opiniao": "Saude",
+            "tipo_opiniao": "Reclamacao",
+            "texto_opiniao": "Gostei do atendimento",
+            "bairro": "Centro",
+            "genero": "Feminino"
+          }
+        ]
+      }
     ]
   }
 }
